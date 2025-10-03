@@ -1,5 +1,5 @@
 import { HttpStatusCode } from '@/common/constants';
-import { NextFunction, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import conversationService from './conversationService';
 import { AuthenticatedRequest } from '@/hook/AuthenticatedRequest';
 class ConversationController {
@@ -27,26 +27,101 @@ class ConversationController {
     }
   }
 
-  async createGroupConversation(
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) {
+  // async createGroupConversation(
+  //   req: AuthenticatedRequest,
+  //   res: Response,
+  //   next: NextFunction
+  // ) {
+  //   try {
+  //     const { name, participants } = req.body;
+  //     const adminId = req.user?.id;
+  //     const conversation = await conversationService.createGroupConversation({
+  //       name,
+  //       admin: adminId,
+  //       participants: [...participants, adminId],
+  //     });
+
+  //     return res.status(HttpStatusCode.OK).json({
+  //       message: 'Create group success',
+  //       data: conversation,
+  //     });
+  //   } catch (error) {
+  //     console.log(error);
+  //     next(error);
+  //   }
+  // }
+  async assignAgent(req: Request, res: Response, next: NextFunction) {
     try {
-      const { name, participants } = req.body;
-      const adminId = req.user?.id;
-      const conversation = await conversationService.createGroupConversation({
-        name,
-        admin: adminId,
-        participants: [...participants, adminId],
-      });
+      const { conversationId, agentId } = req.body;
+
+      const conversation = await conversationService.assignAgent(
+        conversationId,
+        agentId
+      );
+
+      // socket notify agent
+      const io = req.app.get('io');
+      io.to(agentId).emit('assignedConversation', conversation);
 
       return res.status(HttpStatusCode.OK).json({
-        message: 'Create group success',
+        message: 'Assign agent success',
         data: conversation,
       });
     } catch (error) {
-      console.log(error);
+      next(error);
+    }
+  }
+
+  // AI detect intent -> assign leader
+  async assignLeader(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { conversationId, department } = req.body;
+
+      const conversation = await conversationService.assignLeader(
+        conversationId,
+        department
+      );
+      if (!conversation) {
+        return res.status(HttpStatusCode.NOT_FOUND).json({
+          message: 'Conversation not found',
+        });
+      }
+
+      const io = req.app.get('io');
+
+      // socket notify leader
+      if (conversation.leader) {
+        io.to(conversation.leader._id.toString()).emit(
+          'newAssignedConversation',
+          conversation
+        );
+      }
+
+      return res.status(HttpStatusCode.OK).json({
+        message: 'Assign leader success',
+        data: conversation,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // API tạo room group thủ công (nếu cần)
+  async createGroup(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { userId, botId, username, platform } = req.body;
+      const conversation = await conversationService.createGroupConversation(
+        userId,
+        botId,
+        username,
+        platform
+      );
+
+      return res.status(HttpStatusCode.OK).json({
+        message: 'Create group conversation success',
+        data: conversation,
+      });
+    } catch (error) {
       next(error);
     }
   }

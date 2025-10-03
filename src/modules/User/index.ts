@@ -33,7 +33,7 @@ UserRouter.post('/register', RegisterMiddleware, userRouterController.Register);
 UserRouter.get('/all', userRouterController.getAllUser);
 UserRouter.post(
   '/login',
-  // verifyTokenMiddleware,
+  verifyTokenMiddleware,
   LoginMiddleware,
   userRouterController.Login
 );

@@ -6,6 +6,9 @@ export interface IConversation extends Document {
   participants: mongoose.Types.ObjectId[];
   admin?: mongoose.Types.ObjectId;
   lastMessage?: mongoose.Types.ObjectId;
+  assignedDepartment?: 'sales' | 'support' | 'care';
+  leader?: mongoose.Types.ObjectId;
+  assignedAgent?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +22,17 @@ const ConversationSchema: Schema = new Schema(
     ],
     admin: { type: Schema.Types.ObjectId, ref: 'User' },
     lastMessage: { type: Schema.Types.ObjectId, ref: 'Message' },
+    assignedDepartment: {
+      type: String,
+      enum: ['sales', 'support', 'care'],
+      required: false,
+    },
+    leader: { type: Schema.Types.ObjectId, ref: 'User', required: false },
+    assignedAgent: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+    },
   },
   {
     timestamps: true,

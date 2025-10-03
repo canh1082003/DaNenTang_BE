@@ -28,19 +28,117 @@ class ConversationService {
   }
 
   // Tạo nhóm chat mới
-  async createGroupConversation(data: {
-    name: string;
-    admin: string;
-    participants: string[];
-  }): Promise<IConversation> {
-    const newConversation = new Conversation({
+  async createGroupConversation(
+    userId: string,
+    botId: string,
+    username: string,
+    platform: 'Telegram' | 'Facebook' | 'Zalo'
+  ) {
+    const conversation = new Conversation({
       type: 'group',
-      name: data.name,
-      admin: data.admin,
-      participants: data.participants,
+      name: `${username}_${platform}`,
+      participants: [userId, botId],
     });
+    return await conversation.save();
+  }
+  // async assignLeader(
+  //   conversationId: string,
+  //   department: 'sales' | 'support' | 'care'
+  // ) {
+  //   const conversation = await Conversation.findById(conversationId);
+  //   if (!conversation) {
+  //     throw new Error('Conversation not found');
+  //   }
 
-    return await newConversation.save();
+  //   conversation.assignedDepartment = department;
+  //   let leaderId: mongoose.Types.ObjectId | null = null;
+  //   if (department === 'support') {
+  //     leaderId = new mongoose.Types.ObjectId(process.env.LEADER_SUPPORT_ID!);
+  //   } else if (department === 'sales') {
+  //     leaderId = new mongoose.Types.ObjectId(process.env.LEADER_SALES_ID!);
+  //   } else if (department === 'care') {
+  //     leaderId = new mongoose.Types.ObjectId(process.env.LEADER_CARE_ID!);
+  //   }
+  //   if (!leaderId) {
+  //     // fallback: tìm trong DB
+  //     const leader = await User.findOne({ role: 'leader', department });
+  //     if (!leader) {
+  //       throw new Error(`No leader found for department ${department}`);
+  //     }
+  //     leaderId = leader._id as mongoose.Types.ObjectId;
+  //   }
+
+  //   if (!conversation.participants.includes(leaderId)) {
+  //     conversation.participants.push(leaderId);
+  //   }
+  //   conversation.leader = leaderId;
+  //   await conversation.save();
+  //   return conversation.populate('leader', 'username role department');
+  // }
+  async assignLeader(
+    conversationId: string,
+    department: 'sales' | 'support' | 'care'
+  ) {
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      throw new Error('Conversation not found');
+    }
+
+    conversation.assignedDepartment = department;
+
+    let leaderId: mongoose.Types.ObjectId | null = null;
+    if (department === 'support') {
+      leaderId = new mongoose.Types.ObjectId(process.env.LEADER_SUPPORT_ID!);
+    } else if (department === 'sales') {
+      leaderId = new mongoose.Types.ObjectId(process.env.LEADER_SALES_ID!);
+    } else if (department === 'care') {
+      leaderId = new mongoose.Types.ObjectId(process.env.LEADER_CARE_ID!);
+    }
+
+    if (!leaderId) {
+      const leader = await User.findOne({ role: 'leader', department });
+      if (!leader) {
+        throw new Error(`No leader found for department ${department}`);
+      }
+      leaderId = leader._id as mongoose.Types.ObjectId;
+    }
+
+    if (!conversation.participants.includes(leaderId)) {
+      conversation.participants.push(leaderId);
+    }
+
+    conversation.leader = leaderId;
+    await conversation.save();
+
+    // ✅ luôn trả về bản mới nhất từ DB
+    return Conversation.findById(conversationId)
+      .populate('leader', 'username role department')
+      .lean();
+  }
+
+  async assignAgent(conversationId: string, agentId: string) {
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      throw new Error('Conversation not found');
+    }
+
+    const agent = await User.findById(agentId);
+    if (!agent || agent.role !== 'agent') {
+      throw new Error('Invalid agent');
+    }
+
+    const agentIdObj = agent._id as mongoose.Types.ObjectId;
+
+    if (!conversation.participants.includes(agentIdObj)) {
+      conversation.participants.push(agentIdObj);
+    }
+    conversation.assignedAgent = agentIdObj;
+    await conversation.save();
+
+    return conversation.populate(
+      'assignedAgent',
+      'username avatar role department'
+    );
   }
   async getAllConversations(userId: string) {
     const conversations = await Conversation.find({

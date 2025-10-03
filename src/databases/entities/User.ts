@@ -16,6 +16,7 @@ export interface IUser extends Document {
   psid?: string;
   tgid?: string;
   zaloId?: string;
+  department?: 'sales' | 'support' | 'care';
 }
 
 const UserSchema: Schema = new Schema(
@@ -37,6 +38,11 @@ const UserSchema: Schema = new Schema(
     psid: { type: String, unique: true, sparse: true },
     tgid: { type: String, unique: true, sparse: true },
     zaloId: { type: String, unique: true, sparse: true },
+    department: {
+      type: String,
+      enum: ['sales', 'support', 'care'],
+      required: false,
+    },
   },
   {
     timestamps: true,

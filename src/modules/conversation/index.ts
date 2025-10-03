@@ -13,7 +13,7 @@ ConversationRouter.post(
 ConversationRouter.post(
   '/group',
   verifyTokenMiddleware,
-  conversationController.createGroupConversation
+  conversationController.createGroup
 );
 ConversationRouter.get(
   '/all',

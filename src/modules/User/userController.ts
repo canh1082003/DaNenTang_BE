@@ -12,7 +12,13 @@ import { sendEmail } from '@/utils/mail';
 import Unauthorized from '@/common/exception/Unauthorized';
 import { clientMap } from '@/socket';
 import axios from 'axios';
-import { bot, getUserName } from '@/hook/AIReply';
+import {
+  bot,
+  detectIntent,
+  getAIReply,
+  getTelegramFileUrl,
+  getUserName,
+} from '@/hook/AIReply';
 import Conversation from '@/databases/entities/Conversation';
 import conversationService from '../conversation/conversationService';
 import chatService from '../Chat/chatService';
@@ -20,7 +26,6 @@ import { AuthenticatedRequest } from '@/hook/AuthenticatedRequest';
 import Message from '@/databases/entities/Message';
 import User from '@/databases/entities/User';
 import { v4 as uuidv4 } from 'uuid';
-import chatController from '../Chat/chatController';
 
 class UserRouterController {
   async Register(req: Request, res: ResponseCustom, next: NextFunction) {
@@ -338,17 +343,23 @@ class UserRouterController {
         password: `fb_${uuidv4()}`,
       });
     }
-
+    const userProfile = await getUserName(
+      sender_psid,
+      process.env.FB_PAGE_TOKEN!
+    );
+    const fullName = `${userProfile.first_name} ${userProfile.last_name}`;
     // 2. Tìm hoặc tạo conversation
     let conversation = await Conversation.findOne({
-      type: 'private',
+      type: 'group',
       participants: { $all: [user._id, process.env.BOT_USER_ID] },
     });
 
     if (!conversation) {
-      conversation = await conversationService.createPrivateConversation(
+      conversation = await conversationService.createGroupConversation(
         user.id.toString(),
-        process.env.BOT_USER_ID!
+        process.env.BOT_USER_ID!,
+        fullName,
+        'Facebook'
       );
     }
 
@@ -377,34 +388,6 @@ class UserRouterController {
     conversation.participants.forEach((p: any) => {
       io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
     });
-
-    // 5. (Nếu cần AI thì bật lại, còn giờ bỏ qua)
-    // const aiReply = await getAIReply(received_message.text);
-
-    // Ví dụ: echo lại message cho user
-    // const reply = `Bạn vừa gửi: ${received_message.text}`;
-
-    // const botMessage = await chatService.SendMessage(
-    //   {
-    //     conversationId: conversation.id.toString(),
-    //     content: reply,
-    //     type: 'text',
-    //   },
-    //   process.env.BOT_USER_ID!
-    // );
-
-    // const populatedBotMessage = await Message.findById(botMessage._id)
-    //   .populate('sender', 'username avatar _id')
-    //   .lean();
-
-    // io.to(conversation.id.toString()).emit('newMessage', populatedBotMessage);
-    // conversation.participants.forEach((p: any) => {
-    //   io.to(p._id.toString()).emit('newMessagePreview', populatedBotMessage);
-    // });
-
-    // // 6. Gửi lại Messenger qua page
-    // console.log('Sender PSID:', sender_psid);
-    // await this.sendMessage(sender_psid, reply);
   }
 
   async handlePostback(sender_psid: string, received_postback: any) {
@@ -474,77 +457,6 @@ class UserRouterController {
       next(error);
     }
   }
-
-  // async WebhookTelegram(req: Request, res: ResponseCustom, next: NextFunction) {
-  //   try {
-  //     const body = req.body;
-
-  //     // Xử lý sự kiện từ Telegram
-  //     // console.log('Telegram Webhook Event:', body);
-
-  //     if (body.message) {
-  //       if (body.message.from?.is_bot) {
-  //         return res.status(HttpStatusCode.OK).json({
-  //           httpStatusCode: HttpStatusCode.OK,
-  //           data: 'IGNORED_BOT_MESSAGE',
-  //         });
-  //       }
-  //       const chatId = body.message.chat.id;
-  //       const text = body.message.text;
-  //       const firstName = body.message.chat.first_name || 'Unknown';
-  //       const lastName = body.message.chat.last_name || '';
-  //       const fullName = `${firstName} ${lastName}`;
-
-  //       // Tìm hoặc tạo user từ Telegram
-  //       const { user, token } =
-  //         await userRouterService.findOrCreateMessengerUser(
-  //           chatId.toString(),
-  //           fullName
-  //         );
-
-  //       // Tìm hoặc tạo conversation
-  //       let conversation = await Conversation.findOne({
-  //         type: 'private',
-  //         participants: { $all: [user._id, process.env.BOT_USER_ID] },
-  //       });
-  //       // console.log(conversation);
-  //       if (!conversation) {
-  //         conversation = await conversationService.createPrivateConversation(
-  //           user.id.toString(),
-  //           process.env.BOT_USER_ID!
-  //         );
-  //       }
-  //       const reqForSendMessage = {
-  //         body: {
-  //           conversationId: conversation.id.toString(),
-  //           content: text,
-  //           fromTelegram: true,
-  //         },
-  //         user: { id: user.id.toString() },
-  //         app: req.app,
-  //       } as AuthenticatedRequest;
-
-  //       const populatedMessage = await chatController.SendMessage(
-  //         reqForSendMessage,
-  //         res,
-  //         next
-  //       );
-  //       const io = req.app.get('io');
-  //       io.to(conversation.id.toString()).emit('newMessage', populatedMessage);
-  //       conversation.participants.forEach((p: any) => {
-  //         io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
-  //       });
-  //     }
-
-  //     return res.status(HttpStatusCode.OK).json({
-  //       httpStatusCode: HttpStatusCode.OK,
-  //       data: 'EVENT_RECEIVED',
-  //     });
-  //   } catch (error) {
-  //     console.error('Error handling Telegram webhook:', error);
-  //     next(error);
-  //   }
-  // }
   async WebhookTelegram(req: Request, res: ResponseCustom, next: NextFunction) {
     try {
       const body = req.body;
@@ -567,7 +479,7 @@ class UserRouterController {
         let user = await User.findOne({ tgid: chatId });
         if (!user) {
           user = await User.create({
-            tgid: chatId, // 👈 lưu tgid như FB lưu psid
+            tgid: chatId,
             username: fullName || `tg_user_${chatId}`,
             email: `${chatId}@telegram.local`,
             password: `tg_${uuidv4()}`,
@@ -576,23 +488,42 @@ class UserRouterController {
 
         // 2. Tìm hoặc tạo conversation
         let conversation = await Conversation.findOne({
-          type: 'private',
+          type: 'group',
           participants: { $all: [user._id, process.env.BOT_USER_ID] },
         });
 
         if (!conversation) {
-          conversation = await conversationService.createPrivateConversation(
+          conversation = await conversationService.createGroupConversation(
             user.id.toString(),
-            process.env.BOT_USER_ID!
+            process.env.BOT_USER_ID!,
+            fullName,
+            'Telegram'
           );
         }
+        let content = '';
+        let type: 'text' | 'image' | 'file' = 'text';
 
-        // 3. Lưu message user gửi
+        if (body.message.text) {
+          content = body.message.text;
+          type = 'text';
+        } else if (body.message.photo) {
+          // Lấy ảnh lớn nhất
+          const photoArr = body.message.photo;
+          // chọn ảnh có độ phân giải lớn nhất
+          const largestPhoto = photoArr[photoArr.length - 1];
+          content = await getTelegramFileUrl(largestPhoto.file_id);
+          type = 'image';
+        } else if (body.message.document) {
+          const fileId = body.message.document.file_id;
+          content = await getTelegramFileUrl(fileId);
+          type = 'file';
+        }
+
         const message = await chatService.SendMessage(
           {
             conversationId: conversation.id.toString(),
-            content: text,
-            type: 'text',
+            content,
+            type,
           },
           user.id.toString()
         );
@@ -604,6 +535,67 @@ class UserRouterController {
         // 4. Đẩy qua socket cho web
         const io = req.app.get('io');
         io.to(conversation.id.toString()).emit('newMessage', populatedMessage);
+        if (!conversation.assignedDepartment) {
+          const aiReply = await getAIReply(text);
+          const botMessage = await chatService.SendMessage(
+            {
+              conversationId: conversation.id.toString(),
+              content: aiReply,
+              type: 'text',
+            },
+            process.env.BOT_USER_ID!
+          );
+          const populatedBotMessage = await Message.findById(botMessage._id)
+            .populate('sender', 'username avatar _id')
+            .lean();
+
+          io.to(conversation.id.toString()).emit(
+            'newMessage',
+            populatedBotMessage
+          );
+          await bot.sendMessage(chatId, aiReply);
+        } else {
+          console.log(
+            `[ROUTER] Conversation đã có department=${conversation.assignedDepartment}, bỏ qua AI`
+          );
+        }
+        const intent = await detectIntent(text);
+        if (intent !== 'other') {
+          if (
+            !conversation.assignedDepartment ||
+            conversation.assignedDepartment !== intent
+          ) {
+            const updatedConversation = await conversationService.assignLeader(
+              conversation.id,
+              intent
+            );
+            console.log(
+              `[ROUTER] Cập nhật department từ ${
+                conversation.assignedDepartment || 'none'
+              } → ${intent}`
+            );
+            if (!updatedConversation) {
+              console.log('[ROUTER] assignLeader trả về null');
+              return;
+            }
+            conversation.assignedDepartment =
+              updatedConversation.assignedDepartment;
+            conversation.leader = updatedConversation.leader;
+            if (updatedConversation.leader) {
+              io.to(updatedConversation.leader._id.toString()).emit(
+                'newAssignedConversation',
+                updatedConversation
+              );
+            }
+          } else {
+            console.log(`[ROUTER] Department đã là ${intent} → giữ nguyên`);
+          }
+        } else {
+          console.log(
+            '>>> Current department:',
+            conversation.assignedDepartment
+          );
+        }
         conversation.participants.forEach((p: any) => {
           io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
         });
