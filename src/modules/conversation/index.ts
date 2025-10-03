@@ -43,4 +43,20 @@ ConversationRouter.get(
   '/fullConversation/:conversationId',
   conversationController.getFullConversation
 );
+
+// xóa tin nhắn (cho chính mình hoặc cho tất cả mọi người)
+ConversationRouter.delete(
+  '/message/:messageId',
+  verifyTokenMiddleware,
+
+  conversationController.deleteMessage
+);
+// xóa toàn bộ tin nhắn trong cuộc trò chuyện (cho chính mình)
+ConversationRouter.delete(
+  '/allMessage/:conversationId',
+  verifyTokenMiddleware,
+
+  conversationController.deleteConversation
+);
+
 export default ConversationRouter;

@@ -31,12 +31,7 @@ UserRouter.post(
 );
 UserRouter.post('/register', RegisterMiddleware, userRouterController.Register);
 UserRouter.get('/all', userRouterController.getAllUser);
-UserRouter.post(
-  '/login',
-  verifyTokenMiddleware,
-  LoginMiddleware,
-  userRouterController.Login
-);
+UserRouter.post('/login', LoginMiddleware, userRouterController.Login);
 UserRouter.put(
   '/update/:id',
   verifyTokenMiddleware,

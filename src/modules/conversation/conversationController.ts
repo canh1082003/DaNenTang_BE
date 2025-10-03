@@ -2,6 +2,7 @@ import { HttpStatusCode } from '@/common/constants';
 import { NextFunction, Request, Response } from 'express';
 import conversationService from './conversationService';
 import { AuthenticatedRequest } from '@/hook/AuthenticatedRequest';
+import Message from '@/databases/entities/Message';
 class ConversationController {
   async createPrivateConversation(
     req: AuthenticatedRequest,
@@ -251,6 +252,68 @@ class ConversationController {
       });
     } catch (error) {
       console.log(error);
+      next(error);
+    }
+  }
+  async deleteMessage(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) {
+    try {
+      const { messageId } = req.params;
+      const { deleteType } = req.query;
+      const userId = req.user.id;
+      const io = req.app.get('io');
+
+      if (!deleteType || (deleteType !== 'me' && deleteType !== 'everyone')) {
+        return res
+          .status(400)
+          .json({ message: 'deleteType must be "me" or "everyone"' });
+      }
+
+      const updated = await conversationService.deleteMessage(
+        messageId,
+        userId,
+        deleteType
+      );
+      if (!updated) {
+        throw new Error('Message not found or not authorized');
+      }
+      if (deleteType === 'me') {
+        // chỉ emit cho chính user xoá
+        io.to(userId).emit('messageDeletedForMe', { messageId });
+      } else if (deleteType === 'everyone') {
+        // emit cho cả room
+        io.to(updated.conversation.toString()).emit(
+          'messageDeletedForEveryone',
+          { messageId }
+        );
+      }
+
+      return res.status(200).json({ message: 'Delete message success' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteConversation(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) {
+    try {
+      const { conversationId } = req.params;
+      const userId = req.user.id;
+      const io = req.app.get('io');
+
+      await conversationService.deleteConversation(conversationId, userId);
+
+      // chỉ emit cho user đã xoá
+      io.to(userId).emit('conversationDeletedForMe', { conversationId });
+
+      return res.status(200).json({ message: 'Delete conversation success' });
+    } catch (error) {
       next(error);
     }
   }

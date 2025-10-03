@@ -2,6 +2,8 @@ import Conversation, { IConversation } from '@/databases/entities/Conversation';
 import Message from '@/databases/entities/Message';
 import User from '@/databases/entities/User';
 import mongoose from 'mongoose';
+import { Types } from 'mongoose';
+
 class ConversationService {
   // Tạo conversation mới giữa 2 user
   async createPrivateConversation(userId1: string, userId2: string) {
@@ -236,6 +238,60 @@ class ConversationService {
       messages,
     };
     return fullConversation;
+  }
+  async deleteMessage(
+    messageId: string,
+    userId: string,
+    deleteType: 'me' | 'everyone'
+  ) {
+    const message = await Message.findById(messageId);
+    if (!message) {
+      throw new Error('Message not found');
+    }
+
+    if (deleteType === 'me') {
+      return await Message.findByIdAndUpdate(
+        messageId,
+        { $addToSet: { deletedBy: new Types.ObjectId(userId) } },
+        { new: true }
+      ).lean();
+    }
+
+    if (deleteType === 'everyone') {
+      if (message.sender.toString() !== userId.toString()) {
+        throw new Error('Only sender can delete for everyone');
+      }
+
+      return await Message.findByIdAndUpdate(
+        messageId,
+        { isDeletedForEveryone: true },
+        { new: true }
+      ).lean();
+    }
+
+    throw new Error('Invalid deleteType');
+  }
+
+  // Xoá toàn bộ conversation (1 phía)
+  async deleteConversation(conversationId: string, userId: string) {
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      throw new Error('Conversation not found');
+    }
+
+    await Conversation.findByIdAndUpdate(conversationId, {
+      $addToSet: { deletedBy: new Types.ObjectId(userId) },
+    });
+
+    await Message.updateMany(
+      { conversation: conversationId },
+      { $addToSet: { deletedBy: new Types.ObjectId(userId) } }
+    );
+
+    // return lại conversation để controller/socket emit cho client
+    return await Conversation.findById(conversationId)
+      .populate('participants', 'username avatar')
+      .lean();
   }
 }
 export default new ConversationService();

@@ -11,6 +11,7 @@ export interface IConversation extends Document {
   assignedAgent?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+  deletedBy: mongoose.Types.ObjectId[];
 }
 
 const ConversationSchema: Schema = new Schema(
@@ -33,6 +34,7 @@ const ConversationSchema: Schema = new Schema(
       ref: 'User',
       required: false,
     },
+    deletedBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   },
   {
     timestamps: true,
