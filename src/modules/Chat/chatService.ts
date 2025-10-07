@@ -7,11 +7,13 @@ class ChatService {
       conversationId: string;
       content: string;
       type?: 'text' | 'image' | 'file';
+      fileName?: string;
     },
     senderId: string
   ): Promise<IMessage> {
     const message = new Message({
       conversation: data.conversationId,
+      fileName: data.fileName || null,
       sender: senderId,
       content: data.content,
       type: data.type || 'text',

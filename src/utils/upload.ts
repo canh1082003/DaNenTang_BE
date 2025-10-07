@@ -35,7 +35,8 @@ const storage = new CloudinaryStorage({
     return {
       folder: 'Han_Cf',
       resource_type, // để Cloudinary phân loại
-      public_id: `${Date.now()}-${file.originalname.split('.')[0]}`,
+      // public_id: `${Date.now()}-${file.originalname.split('.')[0]}`,
+      public_id: `${Date.now()}-${file.originalname}`,
     };
   },
 });

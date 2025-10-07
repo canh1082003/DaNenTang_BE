@@ -1,7 +1,9 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
+import FormData from 'form-data';
 import fetch from 'node-fetch';
 import TelegramBot from 'node-telegram-bot-api';
+import { v2 as cloudinary } from 'cloudinary';
 dotenv.config();
 
 export async function getAIReply(
@@ -118,13 +120,92 @@ export async function getUserName(sender_psid: string, FB_PAGE_TOKEN: string) {
   console.log(data);
   return data;
 }
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 export async function getTelegramFileUrl(fileId: string): Promise<string> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const res = await axios.get(
-    `https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`
-  );
-  const filePath = res.data.result.file_path;
-  return `https://api.telegram.org/file/bot${token}/${filePath}`;
+  try {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+
+    // 1️⃣ Lấy file_path từ Telegram
+    const res = await axios.get(
+      `https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`
+    );
+
+    if (!res.data.ok) {
+      throw new Error('Failed to get Telegram file');
+    }
+    const filePath = res.data.result.file_path;
+    const telegramFileUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
+
+    // 2️⃣ Tải file từ Telegram về
+    const fileResponse = await axios.get(telegramFileUrl, {
+      responseType: 'arraybuffer',
+    });
+
+    // 3️⃣ Upload lên Cloudinary — để lưu vĩnh viễn
+    const uploadResult: any = await new Promise((resolve, reject) => {
+      const upload = cloudinary.uploader.upload_stream(
+        {
+          folder: 'TelegramUploads',
+          resource_type: 'auto', // ảnh, gif, webp, v.v.
+        },
+        (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        }
+      );
+      upload.end(Buffer.from(fileResponse.data));
+    });
+
+    // 4️⃣ Trả về link Cloudinary
+    return uploadResult.secure_url;
+  } catch (error: any) {
+    console.error('❌ Error in getTelegramFileUrl:', error.message);
+    throw error;
+  }
 }
+
+export const sendTelegramDocument = async (
+  chatId: string,
+  fileUrl: string,
+  fileName?: string
+) => {
+  try {
+    const fileResponse = await axios.get(fileUrl, {
+      responseType: 'arraybuffer',
+    });
+
+    const formData = new FormData();
+    formData.append('chat_id', chatId);
+    formData.append(
+      'document',
+      Buffer.from(fileResponse.data),
+      fileName || 'file'
+    );
+
+    const res = await axios.post(
+      `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendDocument`,
+      formData,
+      {
+        headers: formData.getHeaders(),
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      }
+    );
+
+    console.log('✅ Telegram document sent:', res.data);
+    return res.data;
+  } catch (err: any) {
+    console.error(
+      '❌ Error sending Telegram document:',
+      err.response?.data || err.message
+    );
+    throw err;
+  }
+};
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 export const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });

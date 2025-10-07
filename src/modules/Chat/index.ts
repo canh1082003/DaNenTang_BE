@@ -6,11 +6,11 @@ const ChatRouter = Router();
 
 ChatRouter.post(
   '/send',
+  verifyTokenMiddleware,
   uploadCloud.fields([
     { name: 'image', maxCount: 5 },
     { name: 'file', maxCount: 5 },
   ]),
-  verifyTokenMiddleware,
   chatController.SendMessage.bind(chatController)
 );
 ChatRouter.get('/:conversationId', chatController.getRoomChatByConversation);

@@ -491,7 +491,6 @@ class UserRouterController {
           type: 'group',
           participants: { $all: [user._id, process.env.BOT_USER_ID] },
         });
-
         if (!conversation) {
           conversation = await conversationService.createGroupConversation(
             user.id.toString(),
@@ -502,7 +501,7 @@ class UserRouterController {
         }
         let content = '';
         let type: 'text' | 'image' | 'file' = 'text';
-
+        console.log(body.message);
         if (body.message.text) {
           content = body.message.text;
           type = 'text';
@@ -535,6 +534,9 @@ class UserRouterController {
         // 4. Đẩy qua socket cho web
         const io = req.app.get('io');
         io.to(conversation.id.toString()).emit('newMessage', populatedMessage);
+        conversation.participants.forEach((p: any) => {
+          io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
+        });
         if (!conversation.assignedDepartment) {
           const aiReply = await getAIReply(text);
           const botMessage = await chatService.SendMessage(
@@ -596,9 +598,9 @@ class UserRouterController {
             conversation.assignedDepartment
           );
         }
-        conversation.participants.forEach((p: any) => {
-          io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
-        });
+        // conversation.participants.forEach((p: any) => {
+        //   io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
+        // });
       }
 
       return res.status(HttpStatusCode.OK).json({
