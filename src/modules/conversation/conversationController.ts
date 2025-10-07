@@ -2,7 +2,6 @@ import { HttpStatusCode } from '@/common/constants';
 import { NextFunction, Request, Response } from 'express';
 import conversationService from './conversationService';
 import { AuthenticatedRequest } from '@/hook/AuthenticatedRequest';
-import Message from '@/databases/entities/Message';
 class ConversationController {
   async createPrivateConversation(
     req: AuthenticatedRequest,

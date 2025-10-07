@@ -264,15 +264,12 @@ class UserRouterController {
         if (body.object === 'page') {
           body.entry.forEach(async (entry: any) => {
             const webhookEvent = entry.messaging[0];
-            console.log('Webhook event:', webhookEvent);
 
             const sender_psid = webhookEvent.sender.id;
-            console.log('Sender PSID:', sender_psid);
             const page = process.env.FB_PAGE_TOKEN as string;
 
             if (webhookEvent.message) {
               const userProfile = await getUserName(sender_psid, page);
-              console.log(userProfile.first_name);
               const fullName = `${userProfile.first_name} ${userProfile.last_name}`;
 
               const { user, token } =
@@ -315,18 +312,65 @@ class UserRouterController {
       next(error);
     }
   }
-  async sendMessage(sender_psid: string, reply: string) {
+  async sendMessage(
+    sender_psid: string,
+    reply: string,
+    type: 'text' | 'image' | 'file'
+  ) {
     const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN;
-    console.log(sender_psid);
-    await axios.post(
-      `https://graph.facebook.com/v19.0/me/messages?access_token=${FB_PAGE_TOKEN}`,
-      {
-        recipient: { id: sender_psid },
-        message: { text: reply },
+    try {
+      let body: any = {};
+
+      if (type === 'text') {
+        body = {
+          recipient: { id: sender_psid },
+          message: { text: reply },
+        };
       }
-    );
-    console.log('Message sent!');
+      // Nếu là ảnh, sử dụng sendPhoto API
+      else if (type === 'image') {
+        body = {
+          recipient: { id: sender_psid },
+          message: {
+            attachment: {
+              type: 'image',
+              payload: { url: reply, is_reusable: true },
+            },
+          },
+        };
+      }
+      // Nếu là file, sử dụng sendDocument API
+      else if (type === 'file') {
+        body = {
+          recipient: { id: sender_psid },
+          message: {
+            attachment: {
+              type: 'file',
+              payload: { url: reply, is_reusable: true },
+            },
+          },
+        };
+      }
+
+      const res = await axios.post(
+        `https://graph.facebook.com/v19.0/me/messages?access_token=${FB_PAGE_TOKEN}`,
+        body,
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+
+      console.log('✅ Message sent!');
+      return res.data;
+    } catch (error: any) {
+      console.error(
+        '❌ Error sending message:',
+        error.response?.data || error.message
+      );
+      throw error;
+    }
   }
+
   async handleMessage(
     sender_psid: string,
     received_message: any,
@@ -362,13 +406,43 @@ class UserRouterController {
         'Facebook'
       );
     }
+    let content = '';
+    let type: 'text' | 'image' | 'file' = 'text';
+    let fileName = '';
+    // Kiểm tra nếu là text, ảnh hay file
+    if (received_message.text) {
+      content = received_message.text;
+      type = 'text';
+    } else if (
+      received_message.attachments &&
+      received_message.attachments[0].type === 'image'
+    ) {
+      const imageUrl = received_message.attachments[0].payload.url;
+      content = imageUrl; // Lấy URL ảnh từ Facebook
+      type = 'image';
+    } else if (
+      received_message.attachments &&
+      received_message.attachments[0].type === 'file'
+    ) {
+      const fileUrl = received_message.attachments[0].payload.url;
+      content = fileUrl;
+      fileName = fileUrl.split('/').pop()?.split('?')[0];
+      console.log(fileName);
+      type = 'file';
+    }
 
+    // Đảm bảo content không rỗng trước khi lưu
+    if (!content) {
+      console.error('❌ Empty content received');
+      return;
+    }
     // 3. Lưu message user gửi
     const message = await chatService.SendMessage(
       {
         conversationId: conversation.id.toString(),
-        content: received_message.text,
-        type: 'text',
+        content,
+        type,
+        fileName,
       },
       user.id.toString()
     );
@@ -388,6 +462,62 @@ class UserRouterController {
     conversation.participants.forEach((p: any) => {
       io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
     });
+    if (!conversation.assignedDepartment) {
+      const aiReply = await getAIReply(content);
+      const botMessage = await chatService.SendMessage(
+        {
+          conversationId: conversation.id.toString(),
+          content: aiReply,
+          type: 'text',
+        },
+        process.env.BOT_USER_ID!
+      );
+      const populatedBotMessage = await Message.findById(botMessage._id)
+        .populate('sender', 'username avatar _id')
+        .lean();
+
+      await this.sendMessageToFacebook(sender_psid, aiReply);
+      io.to(conversation.id.toString()).emit('newMessage', populatedBotMessage);
+      console.log(sender_psid);
+    } else {
+      console.log(
+        `[ROUTER] Conversation đã có department=${conversation.assignedDepartment}, bỏ qua AI`
+      );
+    }
+    const intent = await detectIntent(content);
+    if (intent !== 'other') {
+      if (
+        !conversation.assignedDepartment ||
+        conversation.assignedDepartment !== intent
+      ) {
+        const updatedConversation = await conversationService.assignLeader(
+          conversation.id,
+          intent
+        );
+        console.log(
+          `[ROUTER] Cập nhật department từ ${
+            conversation.assignedDepartment || 'none'
+          } → ${intent}`
+        );
+        if (!updatedConversation) {
+          console.log('[ROUTER] assignLeader trả về null');
+          return;
+        }
+        conversation.assignedDepartment =
+          updatedConversation.assignedDepartment;
+        conversation.leader = updatedConversation.leader;
+        if (updatedConversation.leader) {
+          io.to(updatedConversation.leader._id.toString()).emit(
+            'newAssignedConversation',
+            updatedConversation
+          );
+        }
+      } else {
+        console.log(`[ROUTER] Department đã là ${intent} → giữ nguyên`);
+      }
+    } else {
+      console.log('>>> Current department:', conversation.assignedDepartment);
+    }
   }
 
   async handlePostback(sender_psid: string, received_postback: any) {
@@ -435,6 +565,23 @@ class UserRouterController {
       }
     } catch (error) {
       console.error('Error sending message:', error);
+    }
+  }
+  async sendMessageToFacebook(sender_psid: string, aiReply: string) {
+    const PAGE_ACCESS_TOKEN = process.env.FB_PAGE_TOKEN;
+    const response = await axios.post(
+      `https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+      {
+        recipient: { id: sender_psid },
+        message: { text: aiReply },
+      },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+
+    if (response.status !== 200) {
+      console.error('Unable to send message:', await response.data);
+    } else {
+      console.log('✅ Message sent to Facebook!');
     }
   }
   async sendMessageTelegram(

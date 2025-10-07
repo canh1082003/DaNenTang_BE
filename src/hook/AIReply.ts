@@ -117,7 +117,6 @@ export async function getUserName(sender_psid: string, FB_PAGE_TOKEN: string) {
 
   const response = await fetch(url);
   const data = await response.json();
-  console.log(data);
   return data;
 }
 cloudinary.config({
