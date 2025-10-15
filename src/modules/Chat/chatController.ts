@@ -125,7 +125,7 @@ class ChatController {
           );
         }
       }
-      console.log(savedMessages);
+      // console.log(savedMessages);
       return res.status(200).json({
         message: 'Send Success',
         data: savedMessages,
@@ -217,8 +217,6 @@ class ChatController {
           headers: { 'Content-Type': 'application/json' },
         }
       );
-
-      console.log('✅ FB Message sent:', response.data);
       return response.data;
     } catch (error: any) {
       console.error(

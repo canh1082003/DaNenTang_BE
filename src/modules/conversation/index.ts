@@ -55,7 +55,6 @@ ConversationRouter.delete(
 ConversationRouter.delete(
   '/allMessage/:conversationId',
   verifyTokenMiddleware,
-
   conversationController.deleteConversation
 );
 

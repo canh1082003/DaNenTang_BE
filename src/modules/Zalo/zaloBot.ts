@@ -17,7 +17,7 @@
 //     if (fs.existsSync(SESSION_FILE)) {
 //       // ✅ Khôi phục cookies từ file
 //       const serialized = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'));
-//       const jar = restoreCookieJar(serialized);
+//       const jar = restoreCookieJar(serialized.cookie || serialized);
 
 //       api = await zalo.loginCookie(jar);
 //       // api = zalo;
@@ -35,14 +35,15 @@
 //       // api = zalo;
 //     }
 
-//     // Nghe tin nhắn đến
-//     (api.listener as any).on('message', async (event: any) => {
-//       try {
+//     if (zalo.listener && typeof zalo.listener.on === 'function') {
+//       console.log('🌀 Bắt đầu startListen() (fallback cho v2.x)...');
+//       zalo.startListen('message', async (event: any) => {
 //         console.log('📩 Zalo message:', event);
+//         console.log('📩 [startListen] Zalo message:', event);
 //         const senderId = event.senderId;
 //         const text = event.message?.text;
 
-//         // 1. Tìm hoặc tạo user
+//         // 1️⃣ Tìm hoặc tạo user
 //         let user = await User.findOne({ zaloId: senderId });
 //         if (!user) {
 //           user = await User.create({
@@ -53,7 +54,7 @@
 //           });
 //         }
 
-//         // 2. Tìm hoặc tạo conversation
+//         // 2️⃣ Tìm hoặc tạo conversation
 //         let conversation = await Conversation.findOne({
 //           type: 'group',
 //           participants: { $all: [user._id, process.env.BOT_USER_ID] },
@@ -66,7 +67,7 @@
 //           });
 //         }
 
-//         // 3. Lưu message
+//         // 3️⃣ Lưu message
 //         const message = await chatService.SendMessage(
 //           {
 //             conversationId: conversation.id.toString(),
@@ -80,17 +81,19 @@
 //           .populate('sender', 'username avatar _id')
 //           .lean();
 
-//         // 4. Push ra socket
+//         // 4️⃣ Push ra socket
 //         io.to(conversation.id.toString()).emit('newMessage', populatedMessage);
 //         conversation.participants.forEach((p: any) => {
 //           io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
 //         });
-//       } catch (error) {
-//         console.error('❌ Error handling Zalo message:', error);
-//       }
-//     });
+//       });
 
-//     return api;
+//       console.log('🔊 Zalo listener attached (v2.x)');
+//     } else {
+//       console.warn('⚠️ Zalo listener chưa sẵn sàng (v2.x)');
+//     }
+
+//     return zalo;
 //   } catch (error) {
 //     console.error('❌ Zalo login failed:', error);
 
