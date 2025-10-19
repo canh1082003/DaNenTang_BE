@@ -8,7 +8,7 @@ import { AuthenticatedRequest } from '@/hook/AuthenticatedRequest';
 import Conversation from '@/databases/entities/Conversation';
 import Message from '@/databases/entities/Message';
 import axios from 'axios';
-import { sendTelegramDocument } from '@/hook/AIReply';
+import { bot, sendTelegramDocument } from '@/hook/AIReply';
 import FormData from 'form-data';
 
 class ChatController {
@@ -135,6 +135,32 @@ class ChatController {
       next(error);
     }
   }
+  // Đặt ngoài class
+  sendMessageToTelegram = async (chatId: string, aiReply: string) => {
+    const imageRegex = /(https?:\/\/[^\s)]+\.(jpg|jpeg|png|gif))/i;
+    const match = aiReply.match(imageRegex);
+
+    try {
+      if (match) {
+        const imageUrl = match[1];
+        await bot.sendPhoto(chatId, imageUrl);
+
+        const textOnly = aiReply
+          .replace(/!\[.*?\]\(.*?\)/g, '')
+          .replace(imageRegex, '')
+          .trim();
+
+        if (textOnly) {
+          await bot.SendMessage(chatId, textOnly);
+        }
+      } else {
+        await bot.sendMessage(chatId, aiReply);
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi gửi message đến Telegram:', error);
+    }
+  };
+
   async SendMessageTelegramApi(
     chatId: string,
     content: string,
