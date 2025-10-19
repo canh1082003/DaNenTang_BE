@@ -4,15 +4,35 @@ import FormData from 'form-data';
 import fetch from 'node-fetch';
 import TelegramBot from 'node-telegram-bot-api';
 import { v2 as cloudinary } from 'cloudinary';
+import { systemPrompt } from './prompt';
 dotenv.config();
 
 export async function getAIReply(
   userMessage: string,
-  imageUrl?: string // nếu có ảnh thì truyền URL ảnh vào
+  imageUrl?: string,
+  conversationHistory?: any[]
 ): Promise<string> {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
-
+    const formattedMessages = [
+      {
+        role: 'system',
+        content: systemPrompt,
+      },
+      ...(conversationHistory || []),
+      {
+        role: 'user',
+        content: imageUrl
+          ? [
+              {
+                type: 'text',
+                text: userMessage || 'Phân tích giúp mình bức ảnh này',
+              },
+              { type: 'image_url', image_url: { url: imageUrl } },
+            ]
+          : [{ type: 'text', text: userMessage }],
+      },
+    ];
     const response = await fetch('https://v98store.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -20,26 +40,8 @@ export async function getAIReply(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-mini', // hỗ trợ multimodal (text + image)
-        messages: [
-          {
-            role: 'system',
-            content:
-              'Bạn là một trợ lý AI cá nhân của Công Anh. Khi giao tiếp, hãy xưng "mình" và nói với người đối thoại là "bạn". Không tự nhận tên người dùng là Công Anh, chỉ giới thiệu bản thân là trợ lý của Công Anh. Hãy trả lời tự nhiên, thân thiện, gần gũi như con người.',
-          },
-          {
-            role: 'user',
-            content: imageUrl
-              ? [
-                  {
-                    type: 'text',
-                    text: userMessage || 'Phân tích giúp mình bức ảnh này',
-                  },
-                  { type: 'image_url', image_url: { url: imageUrl } },
-                ]
-              : [{ type: 'text', text: userMessage }],
-          },
-        ],
+        model: 'gpt-4.1-mini',
+        messages: formattedMessages,
       }),
     });
 
@@ -62,7 +64,14 @@ export async function getAIReply(
 // 🔹 Hàm detectIntent
 export async function detectIntent(
   userMessage: string
-): Promise<'sales' | 'support' | 'care' | 'other'> {
+): Promise<
+  | 'view_product'
+  | 'buy_product'
+  | 'consult_product'
+  | 'support'
+  | 'care'
+  | 'other'
+> {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
 
@@ -78,14 +87,16 @@ export async function detectIntent(
           {
             role: 'system',
             content: `
-              Bạn là bộ phân loại intent cho hệ thống CSKH.
-              Nhiệm vụ: phân loại câu khách hàng vào 1 trong 4 nhóm:
-              - "sales": hỏi mua hàng, tư vấn sản phẩm, giá cả
-              - "support": bảo hành, sửa chữa, lỗi kỹ thuật
-              - "care": khiếu nại, phản hồi dịch vụ, chăm sóc khách hàng
-              - "other": không thuộc các nhóm trên
-              Chỉ trả về đúng 1 từ trong [sales, support, care, other].
-            `,
+  Bạn là bộ phân loại intent cho hệ thống CSKH.
+  Nhiệm vụ: phân loại câu khách hàng vào 1 trong 6 nhóm:
+  - "view_product": khách muốn xem sản phẩm, danh sách, mẫu mã
+  - "buy_product": khách muốn mua hàng, hỏi giá, hỏi size, hỏi cách đặt hàng .tư vấn chọn sản phẩm phù hợp, khách hỏi so sánh
+  - "consult_product": 
+  - "support": bảo hành, sửa chữa, lỗi kỹ thuật
+  - "care": khiếu nại, phản hồi dịch vụ, chăm sóc khách hàng
+  - "other": thuộc về buy_product
+  Chỉ trả về đúng 1 từ trong [view_product, buy_product, consult_product, support, care, other].
+`,
           },
           { role: 'user', content: userMessage },
         ],
@@ -102,8 +113,21 @@ export async function detectIntent(
       completion.choices?.[0]?.message?.content?.trim().toLowerCase() ||
       'other';
 
-    if (['sales', 'support', 'care'].includes(intent)) {
-      return intent as 'sales' | 'support' | 'care';
+    if (
+      [
+        'view_product',
+        'buy_product',
+        'consult_product',
+        'support',
+        'care',
+      ].includes(intent)
+    ) {
+      return intent as
+        | 'view_product'
+        | 'buy_product'
+        | 'consult_product'
+        | 'support'
+        | 'care';
     }
     return 'other';
   } catch (err) {
@@ -117,6 +141,10 @@ export async function getUserName(sender_psid: string, FB_PAGE_TOKEN: string) {
 
   const response = await fetch(url);
   const data = await response.json();
+  if (data.error) {
+    return { first_name: `fb_user_${sender_psid}`, last_name: '' };
+  }
+
   return data;
 }
 cloudinary.config({
@@ -152,8 +180,11 @@ export async function getTelegramFileUrl(fileId: string): Promise<string> {
           resource_type: 'auto', // ảnh, gif, webp, v.v.
         },
         (err, result) => {
-          if (err) reject(err);
-          else resolve(result);
+          if (err) {
+            reject(err);
+          } else {
+            resolve(result);
+          }
         }
       );
       upload.end(Buffer.from(fileResponse.data));

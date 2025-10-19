@@ -26,6 +26,7 @@ import { AuthenticatedRequest } from '@/hook/AuthenticatedRequest';
 import Message from '@/databases/entities/Message';
 import User from '@/databases/entities/User';
 import { v4 as uuidv4 } from 'uuid';
+import chatController from '../Chat/chatController';
 
 class UserRouterController {
   async Register(req: Request, res: ResponseCustom, next: NextFunction) {
@@ -378,20 +379,25 @@ class UserRouterController {
     displayName?: string
   ) {
     // 1. Tìm hoặc tạo user mapping với psid
-    let user = await User.findOne({ psid: sender_psid });
-    if (!user) {
-      user = await User.create({
-        psid: sender_psid,
-        username: displayName || `fb_user_${sender_psid}`,
-        email: `${sender_psid}@messenger.local`,
-        password: `fb_${uuidv4()}`,
-      });
-    }
     const userProfile = await getUserName(
       sender_psid,
       process.env.FB_PAGE_TOKEN!
     );
-    const fullName = `${userProfile.first_name} ${userProfile.last_name}`;
+    let fullName = `${userProfile.first_name} ${userProfile.last_name}`;
+    let user = await User.findOne({ psid: sender_psid });
+    if (!user) {
+      const exists = await User.findOne({ username: fullName });
+      if (exists) {
+        fullName = `${fullName}_${Date.now()}`;
+      }
+      user = await User.create({
+        psid: sender_psid,
+        username: fullName,
+        email: `${sender_psid}@messenger.local`,
+        password: `fb_${uuidv4()}`,
+      });
+    }
+
     // 2. Tìm hoặc tạo conversation
     let conversation = await Conversation.findOne({
       type: 'group',
@@ -462,8 +468,28 @@ class UserRouterController {
     conversation.participants.forEach((p: any) => {
       io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
     });
-    if (!conversation.assignedDepartment) {
-      const aiReply = await getAIReply(content);
+    const intent = await detectIntent(content);
+    if (
+      !conversation.assignedDepartment ||
+      intent === 'buy_product' ||
+      intent === 'view_product'
+    ) {
+      console.log(
+        `[ROUTER] AI sẽ trả lời vì department=null hoặc intent=${intent}`
+      );
+
+      const messages = await chatService.getRoomChatByConversation(
+        conversation.id
+      );
+      const conversationHistory = messages.map((m: any) => ({
+        role:
+          m.sender?._id?.toString() === process.env.BOT_USER_ID
+            ? 'assistant'
+            : 'user',
+        content: [{ type: 'text', text: m.content }],
+      }));
+      const limitedHistory = conversationHistory.slice(-10);
+      const aiReply = await getAIReply(content, undefined, limitedHistory);
       const botMessage = await chatService.SendMessage(
         {
           conversationId: conversation.id.toString(),
@@ -472,19 +498,27 @@ class UserRouterController {
         },
         process.env.BOT_USER_ID!
       );
+
       const populatedBotMessage = await Message.findById(botMessage._id)
         .populate('sender', 'username avatar _id')
         .lean();
 
       await this.sendMessageToFacebook(sender_psid, aiReply);
       io.to(conversation.id.toString()).emit('newMessage', populatedBotMessage);
-      console.log(sender_psid);
+      console.log('✅ AI đã trả lời cho người dùng Facebook:', sender_psid);
+
+      // Nếu intent là "xem/mua hàng" thì KHÔNG gán department, dừng ở đây luôn
+      if (intent === 'buy_product' || intent === 'view_product') {
+        console.log(`[ROUTER] Intent ${intent} → bỏ qua assign department`);
+        return;
+      }
     } else {
       console.log(
         `[ROUTER] Conversation đã có department=${conversation.assignedDepartment}, bỏ qua AI`
       );
     }
-    const intent = await detectIntent(content);
+
+    // ⚙️ Xử lý assign department bình thường cho các intent khác
     if (intent !== 'other') {
       if (
         !conversation.assignedDepartment ||
@@ -494,24 +528,46 @@ class UserRouterController {
           conversation.id,
           intent
         );
+
         console.log(
           `[ROUTER] Cập nhật department từ ${
             conversation.assignedDepartment || 'none'
           } → ${intent}`
         );
+
         if (!updatedConversation) {
           console.log('[ROUTER] assignLeader trả về null');
           return;
         }
+
+        const oldDepartment = conversation.assignedDepartment;
         conversation.assignedDepartment =
           updatedConversation.assignedDepartment;
         conversation.leader = updatedConversation.leader;
+
         if (updatedConversation.leader) {
           io.to(updatedConversation.leader._id.toString()).emit(
             'newAssignedConversation',
             updatedConversation
           );
         }
+
+        const payload = {
+          conversationId:
+            updatedConversation._id || conversation._id?.toString(),
+          oldDepartment: oldDepartment || 'none',
+          newDepartment: updatedConversation.assignedDepartment,
+        };
+
+        updatedConversation.participants.forEach((p: any) => {
+          io.to(p._id.toString()).emit('departmentUpdated', payload);
+        });
+
+        console.log(
+          `[ROUTER] Broadcast department ${oldDepartment || 'none'} → ${
+            updatedConversation.assignedDepartment
+          }`
+        );
       } else {
         console.log(`[ROUTER] Department đã là ${intent} → giữ nguyên`);
       }
@@ -569,21 +625,252 @@ class UserRouterController {
   }
   async sendMessageToFacebook(sender_psid: string, aiReply: string) {
     const PAGE_ACCESS_TOKEN = process.env.FB_PAGE_TOKEN;
-    const response = await axios.post(
-      `https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
-      {
-        recipient: { id: sender_psid },
-        message: { text: aiReply },
-      },
-      { headers: { 'Content-Type': 'application/json' } }
-    );
+    const imageRegex = /(https?:\/\/[^\s)]+\.(jpg|jpeg|png|gif))/i;
+    const match = aiReply.match(imageRegex);
 
-    if (response.status !== 200) {
-      console.error('Unable to send message:', await response.data);
-    } else {
-      console.log('✅ Message sent to Facebook!');
+    try {
+      if (match) {
+        const imageUrl = match[1];
+        await axios.post(
+          `https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+          {
+            recipient: { id: sender_psid },
+            message: {
+              attachment: {
+                type: 'image',
+                payload: {
+                  url: imageUrl,
+                  is_reusable: true,
+                },
+              },
+            },
+          },
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+
+        // ⏱️ Gửi text ngay sau đó
+        await new Promise((res) => setTimeout(res, 300));
+
+        const textOnly = aiReply
+          .replace(/!\[.*?\]\(.*?\)/g, '') // bỏ markdown ảnh
+          .replace(imageRegex, '')
+          .trim();
+
+        if (textOnly) {
+          await axios.post(
+            `https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+            {
+              recipient: { id: sender_psid },
+              message: { text: textOnly },
+            },
+            { headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
+        // ✅ Không có ảnh → gửi text bình thường
+        await axios.post(
+          `https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+          {
+            recipient: { id: sender_psid },
+            message: { text: aiReply },
+          },
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    } catch (error: any) {
+      console.error(
+        '❌ Lỗi khi gửi message đến Facebook:',
+        error.response?.data || error.message
+      );
     }
   }
+
+  // async sendMessageTelegram(
+  //   req: Request,
+  //   res: ResponseCustom,
+  //   next: NextFunction
+  // ) {
+  //   try {
+  //     const { chatId, message } = req.body;
+
+  //     // Gửi tin nhắn đến người dùng Telegram
+  //     await bot.sendMessage(chatId, message);
+
+  //     return res.status(HttpStatusCode.OK).json({
+  //       httpStatusCode: HttpStatusCode.OK,
+  //       data: 'Message sent to Telegram!',
+  //     });
+  //   } catch (error) {
+  //     console.error('Error sending message to Telegram:', error);
+  //     next(error);
+  //   }
+  // }
+  // async WebhookTelegram(req: Request, res: ResponseCustom, next: NextFunction) {
+  //   try {
+  //     const body = req.body;
+
+  //     if (body.message) {
+  //       if (body.message.from?.is_bot) {
+  //         return res.status(HttpStatusCode.OK).json({
+  //           httpStatusCode: HttpStatusCode.OK,
+  //           data: 'IGNORED_BOT_MESSAGE',
+  //         });
+  //       }
+
+  //       const chatId = body.message.chat.id.toString();
+  //       const text = body.message.text;
+  //       const firstName = body.message.chat.first_name || 'Unknown';
+  //       const lastName = body.message.chat.last_name || '';
+  //       const fullName = `${firstName} ${lastName}`.trim();
+
+  //       // 1. Tìm hoặc tạo user mapping với tgid
+  //       let user = await User.findOne({ tgid: chatId });
+  //       if (!user) {
+  //         user = await User.create({
+  //           tgid: chatId,
+  //           username: fullName || `tg_user_${chatId}`,
+  //           email: `${chatId}@telegram.local`,
+  //           password: `tg_${uuidv4()}`,
+  //         });
+  //       }
+
+  //       // 2. Tìm hoặc tạo conversation
+  //       let conversation = await Conversation.findOne({
+  //         type: 'group',
+  //         participants: { $all: [user._id, process.env.BOT_USER_ID] },
+  //       });
+  //       if (!conversation) {
+  //         conversation = await conversationService.createGroupConversation(
+  //           user.id.toString(),
+  //           process.env.BOT_USER_ID!,
+  //           fullName,
+  //           'Telegram'
+  //         );
+  //       }
+  //       let content = '';
+  //       let type: 'text' | 'image' | 'file' = 'text';
+  //       if (body.message.text) {
+  //         content = body.message.text;
+  //         type = 'text';
+  //       } else if (body.message.photo) {
+  //         // Lấy ảnh lớn nhất
+  //         const photoArr = body.message.photo;
+  //         // chọn ảnh có độ phân giải lớn nhất
+  //         const largestPhoto = photoArr[photoArr.length - 1];
+  //         content = await getTelegramFileUrl(largestPhoto.file_id);
+  //         type = 'image';
+  //       } else if (body.message.document) {
+  //         const fileId = body.message.document.file_id;
+  //         content = await getTelegramFileUrl(fileId);
+  //         type = 'file';
+  //       }
+
+  //       const message = await chatService.SendMessage(
+  //         {
+  //           conversationId: conversation.id.toString(),
+  //           content,
+  //           type,
+  //         },
+  //         user.id.toString()
+  //       );
+
+  //       const populatedMessage = await Message.findById(message._id)
+  //         .populate('sender', 'username avatar _id')
+  //         .lean();
+
+  //       const io = req.app.get('io');
+  //       io.to(conversation.id.toString()).emit('newMessage', populatedMessage);
+  //       conversation.participants.forEach((p: any) => {
+  //         io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
+  //       });
+  //       if (!conversation.assignedDepartment) {
+  //         const messages = await chatService.getRoomChatByConversation(
+  //           conversation.id
+  //         );
+  //         const conversationHistory = messages.map((m: any) => ({
+  //           role:
+  //             m.sender?._id?.toString() === process.env.BOT_USER_ID
+  //               ? 'assistant'
+  //               : 'user',
+  //           content: [{ type: 'text', text: m.content }],
+  //         }));
+  //         const limitedHistory = conversationHistory.slice(-10);
+  //         const aiReply = await getAIReply(content, undefined, limitedHistory);
+
+  //         const botMessage = await chatService.SendMessage(
+  //           {
+  //             conversationId: conversation.id.toString(),
+  //             content: aiReply,
+  //             type: 'text',
+  //           },
+  //           process.env.BOT_USER_ID!
+  //         );
+  //         const populatedBotMessage = await Message.findById(botMessage._id)
+  //           .populate('sender', 'username avatar _id')
+  //           .lean();
+
+  //         io.to(conversation.id.toString()).emit(
+  //           'newMessage',
+  //           populatedBotMessage
+  //         );
+  //         await bot.sendMessage(chatId, aiReply);
+  //       } else {
+  //         console.log(
+  //           `[ROUTER] Conversation đã có department=${conversation.assignedDepartment}, bỏ qua AI`
+  //         );
+  //       }
+  //       const intent = await detectIntent(text);
+  //       if (intent !== 'other') {
+  //         if (
+  //           !conversation.assignedDepartment ||
+  //           conversation.assignedDepartment !== intent
+  //         ) {
+  //           const updatedConversation = await conversationService.assignLeader(
+  //             conversation.id,
+  //             intent
+  //           );
+  //           console.log(
+  //             `[ROUTER] Cập nhật department từ ${
+  //               conversation.assignedDepartment || 'none'
+  //             } → ${intent}`
+  //           );
+  //           if (!updatedConversation) {
+  //             console.log('[ROUTER] assignLeader trả về null');
+  //             return;
+  //           }
+  //           conversation.assignedDepartment =
+  //             updatedConversation.assignedDepartment;
+  //           conversation.leader = updatedConversation.leader;
+  //           if (updatedConversation.leader) {
+  //             io.to(updatedConversation.leader._id.toString()).emit(
+  //               'newAssignedConversation',
+  //               updatedConversation
+  //             );
+  //           }
+  //         } else {
+  //           console.log(`[ROUTER] Department đã là ${intent} → giữ nguyên`);
+  //         }
+  //       } else {
+  //         console.log(
+  //           '>>> Current department:',
+  //           conversation.assignedDepartment
+  //         );
+  //       }
+  //       // conversation.participants.forEach((p: any) => {
+  //       //   io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
+  //       // });
+  //     }
+
+  //     return res.status(HttpStatusCode.OK).json({
+  //       httpStatusCode: HttpStatusCode.OK,
+  //       data: 'EVENT_RECEIVED',
+  //     });
+  //   } catch (error) {
+  //     console.error('Error handling Telegram webhook:', error);
+  //     next(error);
+  //   }
+  // }
+  // 🧠 Gửi tin nhắn Telegram (cho admin hoặc hệ thống)
   async sendMessageTelegram(
     req: Request,
     res: ResponseCustom,
@@ -592,7 +879,13 @@ class UserRouterController {
     try {
       const { chatId, message } = req.body;
 
-      // Gửi tin nhắn đến người dùng Telegram
+      if (!chatId || !message) {
+        throw new BadRequestException({
+          errorCode: AuthErrorCode.INVALID_REQUEST,
+          errorMessage: 'Missing chatId or message',
+        });
+      }
+
       await bot.sendMessage(chatId, message);
 
       return res.status(HttpStatusCode.OK).json({
@@ -600,154 +893,269 @@ class UserRouterController {
         data: 'Message sent to Telegram!',
       });
     } catch (error) {
-      console.error('Error sending message to Telegram:', error);
+      console.error('❌ Error sending message to Telegram:', error);
       next(error);
     }
   }
+
+  // 🧩 Webhook nhận tin từ Telegram
   async WebhookTelegram(req: Request, res: ResponseCustom, next: NextFunction) {
     try {
       const body = req.body;
 
-      if (body.message) {
-        if (body.message.from?.is_bot) {
-          return res.status(HttpStatusCode.OK).json({
-            httpStatusCode: HttpStatusCode.OK,
-            data: 'IGNORED_BOT_MESSAGE',
-          });
-        }
-
-        const chatId = body.message.chat.id.toString();
-        const text = body.message.text;
-        const firstName = body.message.chat.first_name || 'Unknown';
-        const lastName = body.message.chat.last_name || '';
-        const fullName = `${firstName} ${lastName}`.trim();
-
-        // 1. Tìm hoặc tạo user mapping với tgid
-        let user = await User.findOne({ tgid: chatId });
-        if (!user) {
-          user = await User.create({
-            tgid: chatId,
-            username: fullName || `tg_user_${chatId}`,
-            email: `${chatId}@telegram.local`,
-            password: `tg_${uuidv4()}`,
-          });
-        }
-
-        // 2. Tìm hoặc tạo conversation
-        let conversation = await Conversation.findOne({
-          type: 'group',
-          participants: { $all: [user._id, process.env.BOT_USER_ID] },
+      // Bỏ qua tin nhắn từ bot
+      if (body.message?.from?.is_bot) {
+        return res.status(HttpStatusCode.OK).json({
+          httpStatusCode: HttpStatusCode.OK,
+          data: 'IGNORED_BOT_MESSAGE',
         });
-        if (!conversation) {
-          conversation = await conversationService.createGroupConversation(
-            user.id.toString(),
-            process.env.BOT_USER_ID!,
-            fullName,
-            'Telegram'
-          );
-        }
-        let content = '';
-        let type: 'text' | 'image' | 'file' = 'text';
-        console.log(body.message);
-        if (body.message.text) {
-          content = body.message.text;
-          type = 'text';
-        } else if (body.message.photo) {
-          // Lấy ảnh lớn nhất
-          const photoArr = body.message.photo;
-          // chọn ảnh có độ phân giải lớn nhất
-          const largestPhoto = photoArr[photoArr.length - 1];
-          content = await getTelegramFileUrl(largestPhoto.file_id);
-          type = 'image';
-        } else if (body.message.document) {
-          const fileId = body.message.document.file_id;
-          content = await getTelegramFileUrl(fileId);
-          type = 'file';
-        }
+      }
 
-        const message = await chatService.SendMessage(
-          {
-            conversationId: conversation.id.toString(),
-            content,
-            type,
-          },
-          user.id.toString()
+      if (!body.message) {
+        throw new BadRequestException({
+          errorCode: AuthErrorCode.INVALID_REQUEST,
+          errorMessage: 'Invalid Telegram payload',
+        });
+      }
+
+      const chatId = body.message.chat.id.toString();
+      const firstName = body.message.chat.first_name || 'Unknown';
+      const lastName = body.message.chat.last_name || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+
+      // 1️⃣ Tìm hoặc tạo user Telegram
+      let user = await User.findOne({ tgid: chatId });
+      if (!user) {
+        const exists = await User.findOne({ username: fullName });
+        const safeName = exists ? `${fullName}_${Date.now()}` : fullName;
+
+        user = await User.create({
+          tgid: chatId,
+          username: safeName,
+          email: `${chatId}@telegram.local`,
+          password: `tg_${uuidv4()}`,
+        });
+      }
+
+      // 2️⃣ Tìm hoặc tạo conversation
+      let conversation = await Conversation.findOne({
+        type: 'group',
+        participants: { $all: [user._id, process.env.BOT_USER_ID] },
+      });
+
+      if (!conversation) {
+        conversation = await conversationService.createGroupConversation(
+          user.id.toString(),
+          process.env.BOT_USER_ID!,
+          fullName,
+          'Telegram'
+        );
+      }
+
+      // 3️⃣ Lấy nội dung message
+      let content = '';
+      let type: 'text' | 'image' | 'file' = 'text';
+      let fileName = '';
+
+      if (body.message.text) {
+        content = body.message.text;
+        type = 'text';
+      } else if (body.message.photo) {
+        const largestPhoto = body.message.photo[body.message.photo.length - 1];
+        content = await getTelegramFileUrl(largestPhoto.file_id);
+        type = 'image';
+      } else if (body.message.document) {
+        const fileId = body.message.document.file_id;
+        content = await getTelegramFileUrl(fileId);
+        fileName = body.message.document.file_name || 'unknown_file';
+        type = 'file';
+      }
+
+      if (!content) {
+        console.warn('⚠️ Empty message content, ignoring.');
+        return res.status(HttpStatusCode.OK).json({
+          httpStatusCode: HttpStatusCode.OK,
+          data: 'EMPTY_MESSAGE_IGNORED',
+        });
+      }
+
+      // 4️⃣ Lưu message người dùng gửi
+      const message = await chatService.SendMessage(
+        {
+          conversationId: conversation.id.toString(),
+          content,
+          type,
+          fileName,
+        },
+        user.id.toString()
+      );
+
+      const populatedMessage = await Message.findById(message._id)
+        .populate('sender', 'username avatar _id')
+        .lean();
+
+      const io = req.app.get('io');
+      io.to(conversation.id.toString()).emit('newMessage', populatedMessage);
+      conversation.participants.forEach((p: any) => {
+        io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
+      });
+
+      // 5️⃣ Phân tích intent
+      const intent = await detectIntent(content);
+
+      // 6️⃣ Gọi AI trả lời nếu chưa có department hoặc intent đặc biệt
+      if (
+        !conversation.assignedDepartment ||
+        intent === 'buy_product' ||
+        intent === 'view_product'
+      ) {
+        console.log(
+          `[ROUTER] AI sẽ trả lời vì department=null hoặc intent=${intent}`
         );
 
-        const populatedMessage = await Message.findById(message._id)
+        const messages = await chatService.getRoomChatByConversation(
+          conversation.id
+        );
+        const conversationHistory = messages.map((m: any) => ({
+          role:
+            m.sender?._id?.toString() === process.env.BOT_USER_ID
+              ? 'assistant'
+              : 'user',
+          content: [{ type: 'text', text: m.content }],
+        }));
+
+        const limitedHistory = conversationHistory.slice(-10);
+        const aiReply = await getAIReply(content, undefined, limitedHistory);
+
+        // Lưu message bot
+        const botMessage = await chatService.SendMessage(
+          {
+            conversationId: conversation.id.toString(),
+            content: aiReply,
+            type: 'text',
+          },
+          process.env.BOT_USER_ID!
+        );
+
+        const populatedBotMessage = await Message.findById(botMessage._id)
           .populate('sender', 'username avatar _id')
           .lean();
 
-        // 4. Đẩy qua socket cho web
-        const io = req.app.get('io');
-        io.to(conversation.id.toString()).emit('newMessage', populatedMessage);
-        conversation.participants.forEach((p: any) => {
-          io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
-        });
-        if (!conversation.assignedDepartment) {
-          const aiReply = await getAIReply(text);
-          const botMessage = await chatService.SendMessage(
-            {
-              conversationId: conversation.id.toString(),
-              content: aiReply,
-              type: 'text',
-            },
-            process.env.BOT_USER_ID!
-          );
-          const populatedBotMessage = await Message.findById(botMessage._id)
-            .populate('sender', 'username avatar _id')
-            .lean();
+        io.to(conversation.id.toString()).emit(
+          'newMessage',
+          populatedBotMessage
+        );
 
-          io.to(conversation.id.toString()).emit(
-            'newMessage',
-            populatedBotMessage
-          );
-          await bot.sendMessage(chatId, aiReply);
-        } else {
-          console.log(
-            `[ROUTER] Conversation đã có department=${conversation.assignedDepartment}, bỏ qua AI`
-          );
+        // 🧠 Gửi trả lại Telegram
+        await chatController.sendMessageToTelegram(chatId, aiReply);
+
+        console.log('✅ AI đã trả lời cho người dùng Telegram:', chatId);
+
+        if (intent === 'buy_product' || intent === 'view_product') {
+          console.log(`[ROUTER] Intent ${intent} → bỏ qua assign department`);
+          return res.status(HttpStatusCode.OK).json({
+            httpStatusCode: HttpStatusCode.OK,
+            data: 'EVENT_RECEIVED',
+          });
         }
-        const intent = await detectIntent(text);
-        if (intent !== 'other') {
-          if (
-            !conversation.assignedDepartment ||
-            conversation.assignedDepartment !== intent
-          ) {
-            const updatedConversation = await conversationService.assignLeader(
-              conversation.id,
-              intent
-            );
-            console.log(
-              `[ROUTER] Cập nhật department từ ${
-                conversation.assignedDepartment || 'none'
-              } → ${intent}`
-            );
-            if (!updatedConversation) {
-              console.log('[ROUTER] assignLeader trả về null');
-              return;
-            }
+      } else {
+        console.log(
+          `[ROUTER] Conversation đã có department=${conversation.assignedDepartment}, bỏ qua AI`
+        );
+      }
+
+      // 7️⃣ Assign department nếu cần
+      // if (intent !== 'other') {
+      //   if (
+      //     !conversation.assignedDepartment ||
+      //     conversation.assignedDepartment !== intent
+      //   ) {
+      //     const updatedConversation = await conversationService.assignLeader(
+      //       conversation.id,
+      //       intent
+      //     );
+
+      //     console.log(
+      //       `[ROUTER] Cập nhật department từ ${
+      //         conversation.assignedDepartment || 'none'
+      //       } → ${intent}`
+      //     );
+
+      //     if (updatedConversation) {
+      //       conversation.assignedDepartment =
+      //         updatedConversation.assignedDepartment;
+      //       conversation.leader = updatedConversation.leader;
+
+      //       if (updatedConversation.leader) {
+      //         io.to(updatedConversation.leader._id.toString()).emit(
+      //           'newAssignedConversation',
+      //           updatedConversation
+      //         );
+      //       }
+      //     } else {
+      //       console.log('[ROUTER] assignLeader trả về null');
+      //     }
+      //   } else {
+      //     console.log(`[ROUTER] Department đã là ${intent} → giữ nguyên`);
+      //   }
+      // } else {
+      //   console.log('>>> Current department:', conversation.assignedDepartment);
+      // }
+      // 7️⃣ Xử lý intent và cập nhật department động
+      // const intent = await detectIntent(content);
+
+      if (intent && intent !== 'other') {
+        // Luôn cập nhật lại department theo intent mới nhất
+        const oldDepartment = conversation.assignedDepartment;
+
+        // Nếu khác department cũ → cập nhật mới
+        if (oldDepartment !== intent) {
+          const updatedConversation = await conversationService.assignLeader(
+            conversation.id,
+            intent
+          );
+
+          if (updatedConversation) {
             conversation.assignedDepartment =
               updatedConversation.assignedDepartment;
             conversation.leader = updatedConversation.leader;
+
+            console.log(
+              `[ROUTER] Cập nhật department từ ${oldDepartment || 'none'} → ${
+                updatedConversation.assignedDepartment
+              }`
+            );
+
+            // const io = req.app.get('io');
+            const payload = {
+              conversationId:
+                updatedConversation._id || conversation._id?.toString(),
+              oldDepartment: oldDepartment || 'none',
+              newDepartment: updatedConversation.assignedDepartment,
+            };
+
+            // 🔔 Emit đến leader mới
             if (updatedConversation.leader) {
               io.to(updatedConversation.leader._id.toString()).emit(
                 'newAssignedConversation',
                 updatedConversation
               );
             }
+
+            // 🔔 Thông báo đến tất cả participant trong conversation
+            updatedConversation.participants.forEach((p: any) => {
+              io.to(p._id.toString()).emit('departmentUpdated', payload);
+            });
           } else {
-            console.log(`[ROUTER] Department đã là ${intent} → giữ nguyên`);
+            console.log('[ROUTER] assignLeader trả về null');
           }
         } else {
-          console.log(
-            '>>> Current department:',
-            conversation.assignedDepartment
-          );
+          console.log(`[ROUTER] Department vẫn là ${intent} → giữ nguyên`);
         }
-        // conversation.participants.forEach((p: any) => {
-        //   io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
-        // });
+      } else {
+        console.log(
+          `[ROUTER] Intent là 'other' hoặc không xác định → không thay đổi department`
+        );
       }
 
       return res.status(HttpStatusCode.OK).json({
@@ -755,10 +1163,36 @@ class UserRouterController {
         data: 'EVENT_RECEIVED',
       });
     } catch (error) {
-      console.error('Error handling Telegram webhook:', error);
+      console.error('❌ Error handling Telegram webhook:', error);
       next(error);
     }
   }
+
+  // 🖼️ Gửi tin nhắn có thể chứa ảnh hoặc text đến Telegram
+  // async sendMessageToTelegram(chatId: string, aiReply: string) {
+  //   const imageRegex = /(https?:\/\/[^\s)]+\.(jpg|jpeg|png|gif))/i;
+  //   const match = aiReply.match(imageRegex);
+
+  //   try {
+  //     if (match) {
+  //       const imageUrl = match[1];
+  //       await bot.sendPhoto(chatId, imageUrl);
+
+  //       const textOnly = aiReply
+  //         .replace(/!\[.*?\]\(.*?\)/g, '')
+  //         .replace(imageRegex, '')
+  //         .trim();
+
+  //       if (textOnly) {
+  //         await bot.sendMessage(chatId, textOnly);
+  //       }
+  //     } else {
+  //       await bot.sendMessage(chatId, aiReply);
+  //     }
+  //   } catch (error) {
+  //     console.error('❌ Lỗi khi gửi message đến Telegram:', error);
+  //   }
+  // }
 
   async registerTelegramWebhook(
     req: Request,

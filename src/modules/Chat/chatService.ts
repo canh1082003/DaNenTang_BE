@@ -21,6 +21,7 @@ class ChatService {
     });
 
     const savedMessage = await message.save();
+
     await Conversation.findByIdAndUpdate(data.conversationId, {
       lastMessage: savedMessage._id,
     });

@@ -4,7 +4,7 @@ import 'reflect-metadata';
 import App from '@/app';
 import { setupSocket } from './socket';
 import { initTelegramWebhook } from './init/telegram';
-// import { initZaloBot } from './modules/Zalo/zaloBot';
+// import { initZaloBot } from './modules/Zalo/zl';
 
 dotenv.config();
 setupSocket(App.server, App.app);

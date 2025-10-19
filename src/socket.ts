@@ -5,6 +5,7 @@ import { Application } from 'express';
 import jwt from 'jsonwebtoken';
 import Message from './databases/entities/Message';
 import User from './databases/entities/User';
+import Conversation from './databases/entities/Conversation';
 let io: SocketIOServer;
 export const clientMap = new Map<string, string>();
 export const setupSocket = (server: HTTPServer, app: Application) => {
@@ -23,35 +24,35 @@ export const setupSocket = (server: HTTPServer, app: Application) => {
       );
       const userId = (payload as { id: string }).id;
       clientMap.set(userId, socket.id);
-
       console.log('Client connected:', socket.id, payload);
-
-      // Emit user online status to all clients
       socket.broadcast.emit('userOnline', {
         userId,
         timestamp: new Date().toISOString(),
       });
 
-      // Allow client to explicitly setup and join their personal room by userId
       socket.on('setup', (id: string) => {
         if (id && id === userId) {
           socket.join(userId);
         }
       });
 
-      // Join a specific conversation room
       socket.on('joinRoom', (conversationId: string) => {
         void socket.join(conversationId);
       });
 
-      // Mark all messages in a conversation as read by current user
       socket.on('markAsRead', async (conversationId: string) => {
         try {
-          if (!conversationId) return;
+          if (!conversationId) {
+            return;
+          }
           await Message.updateMany(
             { conversation: conversationId, readBy: { $ne: userId } },
             { $addToSet: { readBy: userId } }
           );
+          await Conversation.findByIdAndUpdate(conversationId, {
+            $set: { [`lastReads.${userId}`]: new Date() },
+          });
+
           const payload = {
             conversationId,
             userId,

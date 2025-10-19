@@ -28,6 +28,20 @@ class ConversationService {
 
     return await newConversation.save();
   }
+  async markAsRead(conversationId: string, userId: string) {
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return null;
+    }
+
+    (conversation.lastReads as Map<string, Date>).set(
+      userId.toString(),
+      new Date()
+    );
+    await conversation.save();
+
+    return true;
+  }
 
   // Tạo nhóm chat mới
   async createGroupConversation(
@@ -79,7 +93,12 @@ class ConversationService {
   // }
   async assignLeader(
     conversationId: string,
-    department: 'sales' | 'support' | 'care'
+    department:
+      | 'view_product'
+      | 'buy_product'
+      | 'consult_product'
+      | 'support'
+      | 'care'
   ) {
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
@@ -91,11 +110,12 @@ class ConversationService {
     let leaderId: mongoose.Types.ObjectId | null = null;
     if (department === 'support') {
       leaderId = new mongoose.Types.ObjectId(process.env.LEADER_SUPPORT_ID!);
-    } else if (department === 'sales') {
-      leaderId = new mongoose.Types.ObjectId(process.env.LEADER_SALES_ID!);
     } else if (department === 'care') {
-      leaderId = new mongoose.Types.ObjectId(process.env.LEADER_CARE_ID!);
+      leaderId = new mongoose.Types.ObjectId(process.env.LEADER_SALES_ID!);
     }
+    // else if (department === 'care') {
+    //   leaderId = new mongoose.Types.ObjectId(process.env.LEADER_CARE_ID!);
+    // }
 
     if (!leaderId) {
       const leader = await User.findOne({ role: 'leader', department });
@@ -150,7 +170,19 @@ class ConversationService {
       .populate('lastMessage')
       .lean();
 
-    return conversations;
+    const result = await Promise.all(
+      conversations.map(async (conv) => {
+        const lastReadAt = conv.lastReads?.[userId] || new Date(0);
+        const unreadCount = await Message.countDocuments({
+          conversation: conv._id,
+          sender: { $ne: userId },
+          createdAt: { $gt: lastReadAt },
+        });
+        return { ...conv, unreadCount };
+      })
+    );
+
+    return result;
   }
   async addMember(
     conversationId: string,

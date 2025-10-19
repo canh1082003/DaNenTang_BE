@@ -6600,9 +6600,9 @@ semver@^7.3.5, semver@^7.3.8, semver@^7.5.3, semver@^7.5.4:
     lru-cache "^6.0.0"
 
 semver@^7.6.3:
-  version "7.7.2"
-  resolved "https://registry.yarnpkg.com/semver/-/semver-7.7.2.tgz#67d99fdcd35cec21e6f8b87a7fd515a33f982b58"
-  integrity sha512-RF0Fw+rO5AMf9MAyaRXI4AV0Ulj5lMHqVxxdSgiVbixSCXoEmmX/jk0CuJw4+3SqroYO9VoUh+HcuJivvtJemA==
+  version "7.7.3"
+  resolved "https://registry.yarnpkg.com/semver/-/semver-7.7.3.tgz#4b5f4143d007633a8dc671cd0a6ef9147b8bb946"
+  integrity sha512-SdsKMrI9TdgjdweUSR9MweHA4EJ8YxHn8DFaDisvhVlUOe4BF1tLD7GAj0lIqWVl+dPb/rExr0Btby5loQm20Q==
 
 send@0.18.0:
   version "0.18.0"
@@ -8120,10 +8120,10 @@ z-schema@^5.0.1:
   optionalDependencies:
     commander "^10.0.0"
 
-zca-js@^2.0.1:
-  version "2.0.1"
-  resolved "https://registry.yarnpkg.com/zca-js/-/zca-js-2.0.1.tgz#63693040e11a93c73f80fa06cd9d4b5ac823e32a"
-  integrity sha512-qSgtVxOz3B9tJIcuXHWZZVKr2BrQiW3Z++wfNODD2VIWla3RAEyc8FKRIq+w3P7CS1xYhI5PDH8sowh47xyIQw==
+zca-js@^2.0.4:
+  version "2.0.4"
+  resolved "https://registry.yarnpkg.com/zca-js/-/zca-js-2.0.4.tgz#2025491a89caef3203a02aa718f6f6757c69fbd6"
+  integrity sha512-rxa2mV1N6UAxyIjQVdCXyiBmbqu/qZtCsXkfYhjU7rVxThvHYbBvtCMN+XXOkc13GRSrT8MNGGzD4B6bQU+QFw==
   dependencies:
     crypto-js "^4.2.0"
     form-data "^4.0.4"

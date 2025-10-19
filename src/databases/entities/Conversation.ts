@@ -6,9 +6,15 @@ export interface IConversation extends Document {
   participants: mongoose.Types.ObjectId[];
   admin?: mongoose.Types.ObjectId;
   lastMessage?: mongoose.Types.ObjectId;
-  assignedDepartment?: 'sales' | 'support' | 'care';
+  assignedDepartment?:
+    | 'view_product'
+    | 'buy_product'
+    | 'consult_product'
+    | 'support'
+    | 'care';
   leader?: mongoose.Types.ObjectId;
   assignedAgent?: mongoose.Types.ObjectId;
+  lastReads: Map<string, Date> | Record<string, Date>;
   createdAt: Date;
   updatedAt: Date;
   deletedBy: mongoose.Types.ObjectId[];
@@ -25,7 +31,13 @@ const ConversationSchema: Schema = new Schema(
     lastMessage: { type: Schema.Types.ObjectId, ref: 'Message' },
     assignedDepartment: {
       type: String,
-      enum: ['sales', 'support', 'care'],
+      enum: [
+        'view_product',
+        'buy_product',
+        'consult_product',
+        'support',
+        'care',
+      ],
       required: false,
     },
     leader: { type: Schema.Types.ObjectId, ref: 'User', required: false },
@@ -35,6 +47,11 @@ const ConversationSchema: Schema = new Schema(
       required: false,
     },
     deletedBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    lastReads: {
+      type: Map,
+      of: Date,
+      default: {},
+    },
   },
   {
     timestamps: true,
