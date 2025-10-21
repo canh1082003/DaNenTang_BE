@@ -3,12 +3,8 @@ import User from '@/databases/entities/User';
 import AuthErrorCode from '@/utils/AuthErrorCode';
 import { randomBytes } from 'crypto';
 import { UserInterFace } from './type';
-import { generateEmail } from '@/hook/generateEmail';
-import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
 import { Hashing } from '@/utils/hashing';
-import axios from 'axios';
-class UserRouterService {
+class UserService {
   async register(username: string, email: string, password: string) {
     const hashingPassword = await Hashing.toHash(password);
     const verifyEmailToken = randomBytes(8).toString('hex');
@@ -21,60 +17,7 @@ class UserRouterService {
     });
     return await user.save();
   }
-  async findOrCreateMessengerUser(
-    sender_psid: string,
-    name: string,
-    profilePic?: string
-  ) {
-    const email = generateEmail(sender_psid, name);
 
-    let user = await User.findOne({ email });
-
-    if (!user) {
-      // tạo mật khẩu ngẫu nhiên để hash
-      const randomPassword = crypto.randomBytes(8).toString('hex');
-      const hashedPassword = await Hashing.toHash(randomPassword);
-
-      user = new User({
-        username: name,
-        email,
-        password: hashedPassword,
-        role: 'user',
-        isVerifyEmail: true, // auto verify vì không gửi email
-        profilePic,
-      });
-      await user.save();
-      console.log('✅ Registered messenger user:', email);
-    } else {
-      // console.log('🔑 Found messenger user:', email);
-    }
-
-    // tạo JWT
-    const token = jwt.sign(
-      { id: user.id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    );
-
-    return { user, token };
-  }
-  async registerTelegramWebhookDirect() {
-    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-    const WEBHOOK_URL = process.env.TELEGRAM_WEBHOOK_URL;
-
-    const response = await axios.post(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`,
-      { url: WEBHOOK_URL }
-    );
-
-    if (!response.data.ok) {
-      throw new Error(
-        `❌ Failed to register webhook: ${response.data.description}`
-      );
-    }
-    console.log('✅ Telegram webhook registered successfully!');
-    return response.data;
-  }
   async findUserByEmail(email: string) {
     return await User.findOne({ email });
   }
@@ -125,4 +68,4 @@ class UserRouterService {
     }));
   }
 }
-export default new UserRouterService();
+export default new UserService();

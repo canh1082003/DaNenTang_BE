@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import userRouterController from './userController';
+import userController from './userController';
 import verifyTokenMiddleware from '@/middlewares/chat.middlewares';
 import {
   GetVerifyEmailTokenMiddleWare,
@@ -8,51 +8,30 @@ import {
 } from '@/middlewares/user.middlewares';
 
 export const UserRouter = Router();
-UserRouter.get(
-  '/webhook',
-  userRouterController.WebhookFacebook.bind(userRouterController)
-);
 
-// nhắn tin => check có acc hay chưa => có => pass ,chưa register rồi login => nếu lần đầu nhắn tạo conversation => gửi tin nhắn (/sendMessage)
-
-UserRouter.post(
-  '/webhook',
-  userRouterController.WebhookFacebook.bind(userRouterController)
-);
-UserRouter.post(
-  '/telegram/send-message',
-  userRouterController.sendMessageTelegram
-);
-UserRouter.post('/telegram/webhook', userRouterController.WebhookTelegram);
-
-UserRouter.post(
-  '/telegram/register-webhook',
-  userRouterController.registerTelegramWebhook
-);
-UserRouter.post('/register', RegisterMiddleware, userRouterController.Register);
-UserRouter.get('/all', userRouterController.getAllUser);
-UserRouter.post('/login', LoginMiddleware, userRouterController.Login);
+UserRouter.post('/register', RegisterMiddleware, userController.Register);
+UserRouter.get('/all', userController.getAllUser);
+UserRouter.post('/login', LoginMiddleware, userController.Login);
 UserRouter.put(
   '/update/:id',
   verifyTokenMiddleware,
-  userRouterController.UpdateUserById
+  userController.UpdateUserById
 );
 UserRouter.delete(
   '/deleteUser/:id',
-  // verifyTokenMiddleware,
-  userRouterController.deleteUserById
+  userController.deleteUserById
 );
 UserRouter.post(
   '/verifyEmail',
   GetVerifyEmailTokenMiddleWare,
-  userRouterController.verifyEmail
+  userController.verifyEmail
 );
 UserRouter.post(
   '/SendComfirmCode/:email',
-  userRouterController.SendComfirmCode
+  userController.SendComfirmCode
 );
 UserRouter.get(
   '/online-status',
   verifyTokenMiddleware,
-  userRouterController.getAllUsersWithOnlineStatus
+  userController.getAllUsersWithOnlineStatus
 );

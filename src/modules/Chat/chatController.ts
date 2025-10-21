@@ -151,7 +151,7 @@ class ChatController {
           .trim();
 
         if (textOnly) {
-          await bot.SendMessage(chatId, textOnly);
+          await bot.sendMessage(chatId, textOnly);
         }
       } else {
         await bot.sendMessage(chatId, aiReply);

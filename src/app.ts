@@ -50,6 +50,7 @@ export class App {
       logger.error(error);
     }
   }
+
 }
 
 export default new App();
