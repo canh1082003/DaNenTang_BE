@@ -118,6 +118,7 @@ class UserController {
           email: user.email,
           username: user.username,
           isVerifyEmail: user.isVerifyEmail,
+          role:user.role,
           token,
         },
       });

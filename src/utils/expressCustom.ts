@@ -1,7 +1,6 @@
-import { Request } from "express";
-import { Response } from "express";
+import { Response,Request } from "express";
 
-export type userInfo = { userId: string; role?: string };
+export interface userInfo { userId: string; role?: string }
 export type RequestCustom = Request & { userInfo?: userInfo };
 
 export interface ErrorDetail {

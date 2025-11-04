@@ -21,7 +21,6 @@ class TelegramService{
   async registerTelegramWebhookDirect() {
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const WEBHOOK_URL = process.env.TELEGRAM_WEBHOOK_URL;
-
   const setWebhook = await axios.post(
     `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`,
     { url: WEBHOOK_URL }
@@ -33,7 +32,6 @@ class TelegramService{
     );
   }
 
-  // 🔍 Check actual connection status
   const info = await axios.get(
     `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo`
   );
