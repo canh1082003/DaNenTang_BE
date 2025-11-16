@@ -54,14 +54,14 @@ export const setupSocket = (server: HTTPServer, app: Application) => {
             $set: { [`lastReads.${userId}`]: new Date() },
           });
 
-          const payload = {
+          const payloadother = {
             conversationId,
             userId,
             at: new Date().toISOString(),
           };
           // Notify all clients in the room and the user's personal room
-          io.to(conversationId).emit('readReceipt', payload);
-          io.to(userId).emit('readReceipt', payload);
+          io.to(conversationId).emit('readReceipt', payloadother);
+          io.to(userId).emit('readReceipt', payloadother);
         } catch (error) {
           console.error('markAsRead error:', error);
         }

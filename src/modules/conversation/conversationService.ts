@@ -2,7 +2,6 @@ import ForbiddenException from '@/common/exception/ForbiddenException';
 import Conversation, { IConversation } from '@/databases/entities/Conversation';
 import Message from '@/databases/entities/Message';
 import User from '@/databases/entities/User';
-import { HttpStatusCode } from '@/utils/httpStatusCode';
 import mongoose from 'mongoose';
 import { Types } from 'mongoose';
 

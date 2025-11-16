@@ -4,7 +4,7 @@ import { AuthenticatedRequest } from '@/hook/AuthenticatedRequest';
 import AuthErrorCode from '@/utils/AuthErrorCode';
 import { ResponseCustom } from '@/utils/expressCustom';
 import { HttpStatusCode } from '@/utils/httpStatusCode';
-import { NextFunction, Request } from 'express';
+import { NextFunction, Request , Response } from 'express';
 import { validationResult } from 'express-validator';
 import FacebookService from './FacebookService';
 import axios from 'axios';
@@ -14,7 +14,6 @@ import conversationService from '../conversation/conversationService';
 import chatService from '../Chat/chatService';
 import Message from '@/databases/entities/Message';
 import { v4 as uuidv4 } from 'uuid';
-import { Response } from 'openai/internal/builtin-types';
 
 class FacebookRouterController {
   WebhookFacebook(
