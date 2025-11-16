@@ -259,7 +259,7 @@ class TelegramController {
         if (oldDepartment !== intent) {
           const updatedConversation = await conversationService.assignLeader(
             conversation.id,
-            intent
+            intent,
           );
 
           if (updatedConversation) {

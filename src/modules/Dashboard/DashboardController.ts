@@ -4,7 +4,11 @@ import { ResponseCustom } from '@/utils/expressCustom';
 import { HttpStatusCode } from '@/utils/httpStatusCode';
 
 class DashboardController {
-  async getDashboardSummary(req: Request, res: ResponseCustom, next: NextFunction) {
+  async getDashboardSummary(
+    req: Request,
+    res: ResponseCustom,
+    next: NextFunction
+  ) {
     try {
       const summary = await DashboardService.getDashboardSummary();
 
@@ -18,7 +22,11 @@ class DashboardController {
     }
   }
 
-  async getRecentConversations(req: Request, res: ResponseCustom, next: NextFunction) {
+  async getRecentConversations(
+    req: Request,
+    res: ResponseCustom,
+    next: NextFunction
+  ) {
     try {
       const recent = await DashboardService.getRecentConversations();
 
@@ -28,20 +36,6 @@ class DashboardController {
       });
     } catch (error: any) {
       console.error('Error getRecentConversations:', error);
-      next(error);
-    }
-  }
-
-  async getPlatformStatus(req: Request, res: ResponseCustom, next: NextFunction) {
-    try {
-      const status = await DashboardService.getPlatformStatus();
-
-      return res.status(HttpStatusCode.OK).json({
-        httpStatusCode: HttpStatusCode.OK,
-        data: status,
-      });
-    } catch (error: any) {
-      console.error('Error getPlatformStatus:', error);
       next(error);
     }
   }

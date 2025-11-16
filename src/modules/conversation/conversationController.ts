@@ -75,10 +75,11 @@ class ConversationController {
   // AI detect intent -> assign leader
   async assignLeader(req: Request, res: Response, next: NextFunction) {
     try {
-      const { conversationId, department } = req.body;
+      const { conversationId, department, defaultStaffId } = req.body;
 
       const conversation = await conversationService.assignLeader(
         conversationId,
+        defaultStaffId,
         department
       );
       if (!conversation) {
@@ -132,8 +133,11 @@ class ConversationController {
   ) {
     try {
       const userId = req.user?.id;
-      const conversations =
-        await conversationService.getAllConversations(userId);
+      const { type } = req.query;
+      const conversations = await conversationService.getAllConversations(
+        userId,
+        String(type)
+      );
 
       return res.status(HttpStatusCode.OK).json({
         message: 'Get all conversations success',
@@ -152,11 +156,12 @@ class ConversationController {
   ) {
     try {
       const { conversationId } = req.params;
-      // const userId = req.user?.id;
+      const userId = req.user?.id;
 
-      const conversation =
-        await conversationService.getConversationById(conversationId);
-
+      const conversation = await conversationService.getConversationById(
+        conversationId,
+        userId
+      );
       return res.status(HttpStatusCode.OK).json({
         message: 'Get conversation details success',
         data: conversation,
@@ -224,18 +229,27 @@ class ConversationController {
   ) {
     try {
       const { conversationId } = req.params;
-      const conversation =
-        await conversationService.deleteConversationId(conversationId);
+      const currentUserId = req.user?.id;
+      console.log(currentUserId);
+      if (!currentUserId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const conversation = await conversationService.leaveConversation(
+        conversationId,
+        currentUserId
+      );
 
       return res.status(HttpStatusCode.OK).json({
-        message: 'Delete conversation success',
+        message: 'You have left the conversation successfully',
         data: conversation,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       next(error);
     }
   }
+
   async getFullConversation(
     req: AuthenticatedRequest,
     res: Response,
@@ -313,6 +327,28 @@ class ConversationController {
 
       return res.status(200).json({ message: 'Delete conversation success' });
     } catch (error) {
+      next(error);
+    }
+  }
+  async getAllConversationsForAdmin(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) {
+    try {
+      const { period = 'all' } = req.query;
+
+      const conversations =
+        await conversationService.getAllConversationsForAdmin(
+          period as 'all' | 'week' | 'month'
+        );
+
+      return res.status(HttpStatusCode.OK).json({
+        message: 'Get all conversations for admin success',
+        data: conversations,
+      });
+    } catch (error) {
+      console.log(error);
       next(error);
     }
   }

@@ -13,9 +13,7 @@ router.use('/conversation', ConversationRouter);
 router.use('/telegram', TelegramRouter);
 router.use('/facebook', FacebookRouter);
 router.use('/platform', PlatformRouter);
-router.use('/dasbboard', DashboardRouter);
-router.get('/health', (_req, res) => {
-  res.status(200).json({ ok: true, message: 'Server is healthy 💚' });
-});
+router.use('/dashboard', DashboardRouter);
+
 
 export default router;

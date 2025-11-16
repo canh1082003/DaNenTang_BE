@@ -1,4 +1,4 @@
-import { NextFunction, Request } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import userRouterService from './userService';
 import { HttpStatusCode } from '@/common/constants';
 import BadRequestException from '@/common/exception/BadRequestException';
@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken';
 import { sendEmail } from '@/utils/mail';
 import Unauthorized from '@/common/exception/Unauthorized';
 import { clientMap } from '@/socket';
+import { AuthenticatedRequest } from '@/hook/AuthenticatedRequest';
 
 class UserController {
   async Register(req: Request, res: ResponseCustom, next: NextFunction) {
@@ -105,12 +106,23 @@ class UserController {
           errorMessage: 'Wrong password',
         });
       }
+      const activeUsers = new Set<string>(); // giữ nguyên
+    const MAX_ACTIVE_USERS = Number(process.env.MAX_ACTIVE_USERS); // fallback 50 nếu chưa set env
+      if (activeUsers.size >= MAX_ACTIVE_USERS && !activeUsers.has(user.id)) {
+      return res.status(HttpStatusCode.TOO_MANY_REQUESTS).json({
+        httpStatusCode: HttpStatusCode.TOO_MANY_REQUESTS,
+        data: "Hệ thống đang quá tải, vui lòng thử lại sau vài phút.",
+      });
+    }
+
+    // ✅ Đánh dấu user là đang login
+    activeUsers.add(user.id);
+    console.log(activeUsers);
       const token = jwt.sign(
         { id: user.id },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '24h' }
       );
-
       return res.status(HttpStatusCode.OK).json({
         httpStatusCode: HttpStatusCode.OK,
         data: {
@@ -119,6 +131,7 @@ class UserController {
           username: user.username,
           isVerifyEmail: user.isVerifyEmail,
           role:user.role,
+          department: user.department,
           token,
         },
       });
@@ -210,5 +223,43 @@ class UserController {
       next(error);
     }
   }
+  Logout(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+      const activeUsers = new Set<string>();
+    if (userId) {
+      activeUsers.delete(userId);
+    }
+
+    return res.status(200).json({
+      httpStatusCode: 200,
+      data: "Đăng xuất thành công",
+      activeNow: activeUsers.size,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+async getUser(req: AuthenticatedRequest, res: ResponseCustom, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new Unauthorized({
+          errorCode: AuthErrorCode.NOT_FOUND,
+          errorMessage: 'User not found',
+        });
+      }
+
+      const user = await userRouterService.findUserById(userId);
+      return res.status(HttpStatusCode.OK).json({
+        httpStatusCode: HttpStatusCode.OK,
+        data: user,
+      });
+    } catch (error) {
+      console.log(error);
+      next(error);
+    }
+  }
+
 }
 export default new UserController();

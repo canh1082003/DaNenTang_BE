@@ -6,12 +6,7 @@ export interface IConversation extends Document {
   participants: mongoose.Types.ObjectId[];
   admin?: mongoose.Types.ObjectId;
   lastMessage?: mongoose.Types.ObjectId;
-  assignedDepartment?:
-    | 'view_product'
-    | 'buy_product'
-    | 'consult_product'
-    | 'support'
-    | 'care';
+  assignedDepartment?: string | null;
   leader?: mongoose.Types.ObjectId;
   assignedAgent?: mongoose.Types.ObjectId;
   lastReads: Map<string, Date> | Record<string, Date>;
@@ -19,7 +14,6 @@ export interface IConversation extends Document {
   updatedAt: Date;
   deletedBy: mongoose.Types.ObjectId[];
 }
-
 const ConversationSchema: Schema = new Schema(
   {
     type: { type: String, enum: ['private', 'group'], required: true },
@@ -37,6 +31,7 @@ const ConversationSchema: Schema = new Schema(
         'consult_product',
         'support',
         'care',
+        'sales',
       ],
       required: false,
     },

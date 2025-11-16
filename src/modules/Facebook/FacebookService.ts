@@ -1,10 +1,11 @@
-import User from "@/databases/entities/User";
-import { generateEmail } from "@/hook/generateEmail";
-import { Hashing } from "@/utils/hashing";
-import axios from "axios";
+import Platform from '@/databases/entities/Platform';
+import User from '@/databases/entities/User';
+import { generateEmail } from '@/hook/generateEmail';
+import { Hashing } from '@/utils/hashing';
+import axios from 'axios';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-class FacebookService{
+class FacebookService {
   async findOrCreateMessengerUser(
     sender_psid: string,
     name: string,
@@ -49,21 +50,19 @@ class FacebookService{
     const NGROK_URL = process.env.NGROK_URL;
 
     if (!APP_ID || !APP_SECRET || !NGROK_URL || !VERIFY_TOKEN) {
-      throw new Error("Missing Facebook environment variables!");
+      throw new Error('Missing Facebook environment variables!');
     }
 
     const APP_ACCESS_TOKEN = `${APP_ID}|${APP_SECRET}`;
-
-    // URL webhook của bạn — phải trùng với config trên Meta Developers
     const WEBHOOK_URL = `${NGROK_URL}/api/v1/facebook/webhook`;
 
     // Gọi Graph API để đăng ký webhook
     const response = await axios.post(
       `https://graph.facebook.com/v21.0/${APP_ID}/subscriptions`,
       {
-        object: "page",
+        object: 'page',
         callback_url: WEBHOOK_URL,
-        fields: "messages,messaging_postbacks,messaging_optins",
+        fields: 'messages,messaging_postbacks,messaging_optins',
         verify_token: VERIFY_TOKEN,
         include_values: true,
       },
@@ -80,7 +79,18 @@ class FacebookService{
       );
     }
 
-    console.log("✅ Facebook Webhook Connect successfully!");
+    const platform = await Platform.findOne({ name: 'Facebook' });
+    console.log(platform);
+    if (platform) {
+      Object.assign(platform, {
+        status: 'connected',
+        connectedAt: new Date(),
+        disconnectedAt: null,
+      });
+      await platform.save();
+    }
+    console.log('✅ Facebook Webhook Connect successfully!');
+
     return response.data;
   }
   async DisconnectFacebookWebhook() {
@@ -88,7 +98,7 @@ class FacebookService{
     const APP_SECRET = process.env.APP_Serect_FACEBOOK;
 
     if (!APP_ID || !APP_SECRET) {
-      throw new Error("Missing Facebook app credentials!");
+      throw new Error('Missing Facebook app credentials!');
     }
 
     const APP_ACCESS_TOKEN = `${APP_ID}|${APP_SECRET}`;
@@ -96,7 +106,14 @@ class FacebookService{
       `https://graph.facebook.com/v21.0/${APP_ID}/subscriptions?access_token=${APP_ACCESS_TOKEN}`
     );
 
-    console.log("🧹 Facebook Webhook Disconnect successfully!");
+    console.log('🧹 Facebook Webhook Disconnect successfully!');
+    const platform = await Platform.findOne({ name: 'Facebook' });
+    if (platform) {
+      Object.assign(platform, { status: 'disconnected' });
+      await platform.save();
+      console.log("📡 Platform status updated to 'disconnected'");
+    }
+
     return response.data;
   }
 }

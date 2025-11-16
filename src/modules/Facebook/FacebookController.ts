@@ -259,112 +259,262 @@ class FacebookRouterController {
     conversation.participants.forEach((p: any) => {
       io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
     });
+    // const intent = await detectIntent(content);
+    // const STAFF_DEPARTMENTS = ['care', 'support', 'sales'];
+    // const AI_INTENTS = ['view_product', 'buy_product', 'consult_product'];
+    // if (
+    //   !conversation.assignedDepartment ||
+    //  AI_INTENTS.includes(intent)
+    // ) {
+    //   console.log(
+    //     `[ROUTER] AI sẽ trả lời vì department=null hoặc intent=${intent}`
+    //   );
+
+    //   const messages = await chatService.getRoomChatByConversation(
+    //     conversation.id
+    //   );
+    //   const conversationHistory = messages.map((m: any) => ({
+    //     role:
+    //       m.sender?._id?.toString() === process.env.BOT_USER_ID
+    //         ? 'assistant'
+    //         : 'user',
+    //     content: [{ type: 'text', text: m.content }],
+    //   }));
+    //   const limitedHistory = conversationHistory.slice(-10);
+    //   const aiReply = await getAIReply(content, undefined, limitedHistory);
+    //   const botMessage = await chatService.SendMessage(
+    //     {
+    //       conversationId: conversation.id.toString(),
+    //       content: aiReply,
+    //       type: 'text',
+    //     },
+    //     process.env.BOT_USER_ID!
+    //   );
+
+    //   const populatedBotMessage = await Message.findById(botMessage._id)
+    //     .populate('sender', 'username avatar _id')
+    //     .lean();
+
+    //   await this.sendMessageToFacebook(sender_psid, aiReply);
+    //   io.to(conversation.id.toString()).emit('newMessage', populatedBotMessage);
+    //   console.log('AI đã trả lời cho người dùng Facebook:', sender_psid);
+    //    io.to(conversation.id.toString()).emit('newMessagePreview', populatedBotMessage);
+    //   // Nếu intent là "xem/mua hàng" thì KHÔNG gán department, dừng ở đây luôn
+    //   if (intent === 'buy_product' || intent === 'view_product') {
+    //     console.log(`[ROUTER] Intent ${intent} → bỏ qua assign department`);
+    //     return;
+    //   }
+    // } else {
+    //   console.log(
+    //     `[ROUTER] Conversation đã có department=${conversation.assignedDepartment}, bỏ qua AI`
+    //   );
+    // }
+
+    // // ⚙️ Xử lý assign department bình thường cho các intent khác
+    // if (STAFF_DEPARTMENTS.includes(intent)) {
+    //   if (
+    //     !conversation.assignedDepartment ||
+    //     conversation.assignedDepartment !== intent
+    //   ) {
+    //     const updatedConversation = await conversationService.assignLeader(
+    //       conversation.id,
+    //       intent
+    //     );
+
+    //     console.log(
+    //       `[ROUTER] Cập nhật department từ ${
+    //         conversation.assignedDepartment || 'none'
+    //       } → ${intent}`
+    //     );
+
+    //     if (!updatedConversation) {
+    //       console.log('[ROUTER] assignLeader trả về null');
+    //       return;
+    //     }
+
+    //     const oldDepartment = conversation.assignedDepartment;
+    //     conversation.assignedDepartment =
+    //       updatedConversation.assignedDepartment;
+    //     conversation.leader = updatedConversation.leader;
+
+    //     if (updatedConversation.leader) {
+    //       io.to(updatedConversation.leader._id.toString()).emit(
+    //         'newAssignedConversation',
+    //         updatedConversation
+    //       );
+    //     }
+
+    //     const payload = {
+    //       conversationId:
+    //         updatedConversation._id || conversation._id?.toString(),
+    //       oldDepartment: oldDepartment || 'none',
+    //       newDepartment: updatedConversation.assignedDepartment,
+    //     };
+
+    //     updatedConversation.participants.forEach((p: any) => {
+    //       io.to(p._id.toString()).emit('departmentUpdated', payload);
+    //     });
+
+    //     console.log(
+    //       `[ROUTER] Broadcast department ${oldDepartment || 'none'} → ${
+    //         updatedConversation.assignedDepartment
+    //       }`
+    //     );
+    //   } else {
+    //     console.log(`[ROUTER] Department đã là ${intent} → giữ nguyên`);
+    //   }
+    // } else {
+    //   console.log('>>> Current department:', conversation.assignedDepartment);
+    // }
     const intent = await detectIntent(content);
-    if (
-      !conversation.assignedDepartment ||
-      intent === 'buy_product' ||
-      intent === 'view_product'
-    ) {
-      console.log(
-        `[ROUTER] AI sẽ trả lời vì department=null hoặc intent=${intent}`
-      );
 
-      const messages = await chatService.getRoomChatByConversation(
-        conversation.id
-      );
-      const conversationHistory = messages.map((m: any) => ({
-        role:
-          m.sender?._id?.toString() === process.env.BOT_USER_ID
-            ? 'assistant'
-            : 'user',
-        content: [{ type: 'text', text: m.content }],
-      }));
-      const limitedHistory = conversationHistory.slice(-10);
-      const aiReply = await getAIReply(content, undefined, limitedHistory);
-      const botMessage = await chatService.SendMessage(
-        {
-          conversationId: conversation.id.toString(),
-          content: aiReply,
-          type: 'text',
-        },
-        process.env.BOT_USER_ID!
-      );
+const STAFF_DEPARTMENTS = ['care', 'support', 'sales'];
+const AI_INTENTS = ['view_product', 'buy_product', 'consult_product'];
 
-      const populatedBotMessage = await Message.findById(botMessage._id)
-        .populate('sender', 'username avatar _id')
-        .lean();
+// 🧩 TH1: AI được phép trả lời (chưa có department hoặc intent thuần AI)
+if (
+  !conversation.assignedDepartment &&
+  (AI_INTENTS.includes(intent) || intent === 'other' || !intent)
+) {
+  console.log(
+    `[ROUTER] AI sẽ trả lời vì department=${conversation.assignedDepartment} & intent=${intent}`
+  );
 
-      await this.sendMessageToFacebook(sender_psid, aiReply);
-      io.to(conversation.id.toString()).emit('newMessage', populatedBotMessage);
-      console.log('AI đã trả lời cho người dùng Facebook:', sender_psid);
+  const messages = await chatService.getRoomChatByConversation(conversation.id);
+  const conversationHistory = messages.map((m: any) => ({
+    role:
+      m.sender?._id?.toString() === process.env.BOT_USER_ID
+        ? 'assistant'
+        : 'user',
+    content: [{ type: 'text', text: m.content }],
+  }));
 
-      // Nếu intent là "xem/mua hàng" thì KHÔNG gán department, dừng ở đây luôn
-      if (intent === 'buy_product' || intent === 'view_product') {
-        console.log(`[ROUTER] Intent ${intent} → bỏ qua assign department`);
-        return;
-      }
-    } else {
-      console.log(
-        `[ROUTER] Conversation đã có department=${conversation.assignedDepartment}, bỏ qua AI`
+  const limitedHistory = conversationHistory.slice(-10);
+  const aiReply = await getAIReply(content, undefined, limitedHistory);
+
+  const botMessage = await chatService.SendMessage(
+    {
+      conversationId: conversation.id.toString(),
+      content: aiReply,
+      type: 'text',
+    },
+    process.env.BOT_USER_ID!
+  );
+
+  const populatedBotMessage = await Message.findById(botMessage._id)
+    .populate('sender', 'username avatar _id')
+    .lean();
+
+  await this.sendMessageToFacebook(sender_psid, aiReply);
+
+  io.to(conversation.id.toString()).emit('newMessage', populatedBotMessage);
+  io.to(conversation.id.toString()).emit('newMessagePreview', populatedBotMessage);
+
+  console.log('🤖 AI đã trả lời cho người dùng Facebook:', sender_psid);
+
+  // Nếu intent là "xem/mua hàng" thì KHÔNG gán department, dừng tại đây
+  if (intent === 'buy_product' || intent === 'view_product') {
+    console.log(`[ROUTER] Intent ${intent} → bỏ qua assign department`);
+    return;
+  }
+
+  return; // ✅ kết thúc flow AI
+}
+
+// 🧩 TH2: intent/staff department (AI KHÔNG được trả lời)
+// if (STAFF_DEPARTMENTS.includes(intent) || STAFF_DEPARTMENTS.includes(conversation.assignedDepartment)) {
+  if (
+  STAFF_DEPARTMENTS.includes(intent || '') ||
+  STAFF_DEPARTMENTS.includes(conversation.assignedDepartment || '')
+) {
+  console.log(`[ROUTER] AI KHÔNG trả lời vì intent=${intent} hoặc department=${conversation.assignedDepartment}`);
+
+  // Nếu chưa gán hoặc department khác intent → cập nhật
+  if (!conversation.assignedDepartment || conversation.assignedDepartment !== intent) {
+    const updatedConversation = await conversationService.assignLeader(
+      conversation.id,
+      intent
+    );
+
+    console.log(
+      `[ROUTER] Cập nhật department từ ${
+        conversation.assignedDepartment || 'none'
+      } → ${intent}`
+    );
+
+    if (!updatedConversation) {
+      console.log('[ROUTER] assignLeader trả về null');
+      return;
+    }
+
+    const oldDepartment = conversation.assignedDepartment;
+    conversation.assignedDepartment = updatedConversation.assignedDepartment;
+    conversation.leader = updatedConversation.leader;
+
+    if (updatedConversation.leader) {
+      io.to(updatedConversation.leader._id.toString()).emit(
+        'newAssignedConversation',
+        updatedConversation
       );
     }
 
-    // ⚙️ Xử lý assign department bình thường cho các intent khác
-    if (intent !== 'other') {
-      if (
-        !conversation.assignedDepartment ||
-        conversation.assignedDepartment !== intent
-      ) {
-        const updatedConversation = await conversationService.assignLeader(
-          conversation.id,
-          intent
-        );
+    const payload = {
+      conversationId:
+        updatedConversation._id || conversation._id?.toString(),
+      oldDepartment: oldDepartment || 'none',
+      newDepartment: updatedConversation.assignedDepartment,
+    };
 
-        console.log(
-          `[ROUTER] Cập nhật department từ ${
-            conversation.assignedDepartment || 'none'
-          } → ${intent}`
-        );
+    updatedConversation.participants.forEach((p: any) => {
+      io.to(p._id.toString()).emit('departmentUpdated', payload);
+    });
 
-        if (!updatedConversation) {
-          console.log('[ROUTER] assignLeader trả về null');
-          return;
-        }
+    console.log(
+      `[ROUTER] Broadcast department ${oldDepartment || 'none'} → ${
+        updatedConversation.assignedDepartment
+      }`
+    );
+  } else {
+    console.log(`[ROUTER] Department đã là ${intent} → giữ nguyên`);
+  }
 
-        const oldDepartment = conversation.assignedDepartment;
-        conversation.assignedDepartment =
-          updatedConversation.assignedDepartment;
-        conversation.leader = updatedConversation.leader;
+  return; // ✅ kết thúc flow staff
+}
 
-        if (updatedConversation.leader) {
-          io.to(updatedConversation.leader._id.toString()).emit(
-            'newAssignedConversation',
-            updatedConversation
-          );
-        }
+// 🧩 TH3: Các intent khác → AI tiếp tục trả lời bình thường
+console.log(`[ROUTER] Intent ${intent} không nằm trong STAFF_DEPARTMENTS → AI trả lời`);
 
-        const payload = {
-          conversationId:
-            updatedConversation._id || conversation._id?.toString(),
-          oldDepartment: oldDepartment || 'none',
-          newDepartment: updatedConversation.assignedDepartment,
-        };
+const messages = await chatService.getRoomChatByConversation(conversation.id);
+const conversationHistory = messages.map((m: any) => ({
+  role:
+    m.sender?._id?.toString() === process.env.BOT_USER_ID
+      ? 'assistant'
+      : 'user',
+  content: [{ type: 'text', text: m.content }],
+}));
 
-        updatedConversation.participants.forEach((p: any) => {
-          io.to(p._id.toString()).emit('departmentUpdated', payload);
-        });
+const limitedHistory = conversationHistory.slice(-10);
+const aiReply = await getAIReply(content, undefined, limitedHistory);
 
-        console.log(
-          `[ROUTER] Broadcast department ${oldDepartment || 'none'} → ${
-            updatedConversation.assignedDepartment
-          }`
-        );
-      } else {
-        console.log(`[ROUTER] Department đã là ${intent} → giữ nguyên`);
-      }
-    } else {
-      console.log('>>> Current department:', conversation.assignedDepartment);
-    }
+const botMessage = await chatService.SendMessage(
+  {
+    conversationId: conversation.id.toString(),
+    content: aiReply,
+    type: 'text',
+  },
+  process.env.BOT_USER_ID!
+);
+
+const populatedBotMessage = await Message.findById(botMessage._id)
+  .populate('sender', 'username avatar _id')
+  .lean();
+
+await this.sendMessageToFacebook(sender_psid, aiReply);
+
+io.to(conversation.id.toString()).emit('newMessage', populatedBotMessage);
+io.to(conversation.id.toString()).emit('newMessagePreview', populatedBotMessage);
+console.log('🤖 AI đã trả lời cho người dùng Facebook:', sender_psid);
+
   }
 
   async handlePostback(sender_psid: string, received_postback: any) {

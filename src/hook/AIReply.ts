@@ -71,6 +71,7 @@ export async function detectIntent(
   | 'support'
   | 'care'
   | 'other'
+  | 'sales'
 > {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -95,6 +96,7 @@ export async function detectIntent(
   - "support": bảo hành, sửa chữa, lỗi kỹ thuật
   - "care": khiếu nại, phản hồi dịch vụ, chăm sóc khách hàng
   - "other": thuộc về buy_product
+  - "sales": khách hàng có nhu cầu mua hàng, hỏi về chương trình khuyến mãi, giảm giá, ưu đãi đặc biệt
   Chỉ trả về đúng 1 từ trong [view_product, buy_product, consult_product, support, care, other].
 `,
           },
@@ -120,6 +122,7 @@ export async function detectIntent(
         'consult_product',
         'support',
         'care',
+        'sales',
       ].includes(intent)
     ) {
       return intent as
@@ -127,7 +130,8 @@ export async function detectIntent(
         | 'buy_product'
         | 'consult_product'
         | 'support'
-        | 'care';
+        | 'care'
+        | 'sales';
     }
     return 'other';
   } catch (err) {

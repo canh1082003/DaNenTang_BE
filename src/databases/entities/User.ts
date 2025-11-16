@@ -30,7 +30,7 @@ const UserSchema: Schema = new Schema(
         'https://cellphones.com.vn/sforum/wp-content/uploads/2023/10/avatar-trang-4.jpg',
     },
     friends: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    role: { type: String, enum: ['user', 'admin', 'ai'], default: 'user' },
+    role: { type: String, enum: ['user', 'staff','admin', 'ai'], default: 'user' },
     verifyEmailToken: { type: String, require: false },
     isVerifyEmail: { type: Boolean, default: false },
     isOnline: { type: Boolean, default: false },
@@ -41,6 +41,7 @@ const UserSchema: Schema = new Schema(
     department: {
       type: String,
       enum: ['sales', 'support', 'care'],
+      default:null,
       required: false,
     },
   },

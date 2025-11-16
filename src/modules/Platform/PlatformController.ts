@@ -42,30 +42,6 @@ class PlatformController {
     }
   }
 
-  // async connectPlatform(req: Request, res: ResponseCustom, next: NextFunction) {
-  //   try {
-  //     const result = await PlatformService.connectPlatform(req.params.name);
-  //     return res.status(HttpStatusCode.OK).json({
-  //       httpStatusCode: HttpStatusCode.OK,
-  //       data: result,
-  //     });
-  //   } catch (error) {
-  //     console.error('Error connectPlatform:', error);
-  //     next(error);
-  //   }
-  // }
-  // async disconnectPlatform(req: Request, res: ResponseCustom, next: NextFunction) {
-  //   try {
-  //     const result = await PlatformService.disconnectPlatform(req.params.name);
-  //     return res.status(HttpStatusCode.OK).json({
-  //       httpStatusCode: HttpStatusCode.OK,
-  //       data: result,
-  //     });
-  //   } catch (error) {
-  //     console.error('Error disconnectPlatform:', error);
-  //     next(error);
-  //   }
-  // }
   async connectPlatform(req: Request, res: ResponseCustom, next: NextFunction) {
     const { platform } = req.params;
 
@@ -109,6 +85,42 @@ class PlatformController {
       next(error);
     }
   }
+  async createPlatform(req: Request, res: ResponseCustom, next: NextFunction) {
+    try {
+      const { name, status } = req.body;
+
+      if (!name) {
+        return res.status(HttpStatusCode.BAD_REQUEST).json({
+          httpStatusCode: HttpStatusCode.BAD_REQUEST,
+          data: 'Platform name is required.',
+        });
+      }
+
+      const platform = await PlatformService.createPlatform({
+        name,
+        status,
+      });
+
+      return res.status(HttpStatusCode.CREATED).json({
+        httpStatusCode: HttpStatusCode.CREATED,
+        data: platform,
+      });
+    } catch (error: any) {
+      next(error);
+    }
+  }
+  async getPlatformStatus(req: Request, res: ResponseCustom, next: NextFunction) {
+      try {
+        const status = await PlatformService.getPlatformStatus();
+        return res.status(HttpStatusCode.OK).json({
+          httpStatusCode: HttpStatusCode.OK,
+          data: status,
+        });
+      } catch (error: any) {
+        console.error('Error getPlatformStatus:', error);
+        next(error);
+      }
+    }
 }
 
 export default new PlatformController();

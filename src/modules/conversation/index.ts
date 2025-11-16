@@ -23,6 +23,7 @@ ConversationRouter.get(
 
 ConversationRouter.get(
   '/:conversationId',
+  verifyTokenMiddleware,
   conversationController.getConversationDetails
 );
 
@@ -37,6 +38,7 @@ ConversationRouter.delete(
 );
 ConversationRouter.delete(
   '/delete/:conversationId',
+  verifyTokenMiddleware,
   conversationController.deleteConversationId
 );
 ConversationRouter.get(
@@ -51,11 +53,17 @@ ConversationRouter.delete(
 
   conversationController.deleteMessage
 );
-// xóa toàn bộ tin nhắn trong cuộc trò chuyện (cho chính mình)
+
 ConversationRouter.delete(
   '/allMessage/:conversationId',
   verifyTokenMiddleware,
   conversationController.deleteConversation
+);
+
+ConversationRouter.get(
+  '/admin/all',
+  verifyTokenMiddleware,
+  conversationController.getAllConversationsForAdmin
 );
 
 export default ConversationRouter;

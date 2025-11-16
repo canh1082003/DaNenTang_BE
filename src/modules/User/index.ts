@@ -12,6 +12,7 @@ export const UserRouter = Router();
 UserRouter.post('/register', RegisterMiddleware, userController.Register);
 UserRouter.get('/all', userController.getAllUser);
 UserRouter.post('/login', LoginMiddleware, userController.Login);
+UserRouter.get('/logout', verifyTokenMiddleware, userController.Logout);
 UserRouter.put(
   '/update/:id',
   verifyTokenMiddleware,
@@ -35,3 +36,4 @@ UserRouter.get(
   verifyTokenMiddleware,
   userController.getAllUsersWithOnlineStatus
 );
+UserRouter.get('/getUser', verifyTokenMiddleware, userController.getUser);

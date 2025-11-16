@@ -52,14 +52,39 @@ const verifyTokenMiddleware = (
 
     next();
   } catch (error) {
+  //   if (error instanceof jwt.JsonWebTokenError) {
+  //     return res
+  //       .status(errorMessages.token.status)
+  //       .json({ message: errorMessages.token.message });
+  //   }
+
+  //   // Lỗi server khác
+  //   console.error('Lỗi xác thực token:', error);
+  //   return res
+  //     .status(errorMessages.server.status)
+  //     .json({ message: errorMessages.server.message });
+  // }
+  if (error.name === "TokenExpiredError") {
+      const decoded = jwt.decode(req.headers.authorization?.split(" ")[1] || "");
+      const userId = (decoded as any)?.id;
+      const activeUsers = new Set<string>();
+      if (userId && activeUsers.has(userId)) {
+        activeUsers.delete(userId);
+        console.log(`🧹 Token expired, removed user ${userId} from activeUsers`);
+      }
+
+      return res
+        .status(401)
+        .json({ message: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại." });
+    }
+
     if (error instanceof jwt.JsonWebTokenError) {
       return res
         .status(errorMessages.token.status)
         .json({ message: errorMessages.token.message });
     }
 
-    // Lỗi server khác
-    console.error('Lỗi xác thực token:', error);
+    console.error("Lỗi xác thực token:", error);
     return res
       .status(errorMessages.server.status)
       .json({ message: errorMessages.server.message });

@@ -30,3 +30,4 @@ coverage
 # Tất cả file session Zalo
 *.session.json
 zalo-session.json
+.vercel

@@ -6,7 +6,6 @@ import jwt from 'jsonwebtoken';
 import Message from './databases/entities/Message';
 import User from './databases/entities/User';
 import Conversation from './databases/entities/Conversation';
-import { platformState } from './init/ngrokMonitor';
 let io: SocketIOServer;
 export const clientMap = new Map<string, string>();
 export const setupSocket = (server: HTTPServer, app: Application) => {
@@ -26,7 +25,6 @@ export const setupSocket = (server: HTTPServer, app: Application) => {
       const userId = (payload as { id: string }).id;
       clientMap.set(userId, socket.id);
       console.log('Client connected:', socket.id, payload);
-    
 
       socket.broadcast.emit('userOnline', {
         userId,
@@ -37,15 +35,6 @@ export const setupSocket = (server: HTTPServer, app: Application) => {
         if (id && id === userId) {
           void socket.join(userId);
         }
-        socket.emit('platform-status', {
-          name: 'Facebook',
-          status: platformState.Facebook,
-        });
-        socket.emit('platform-status', {
-          name: 'Telegram',
-          status: platformState.Telegram,
-        });
-        console.log('Cline connect Telegram and Facebook success');
       });
 
       socket.on('joinRoom', (conversationId: string) => {
@@ -90,6 +79,29 @@ export const setupSocket = (server: HTTPServer, app: Application) => {
           userId,
           timestamp: new Date().toISOString(),
         });
+      });
+      socket.on('call-offer', ({ offer, targetId, from }) => {
+        io.to(targetId).emit('call-offer', { offer, from });
+      });
+
+      socket.on('call-answer', ({ answer, targetId, from }) => {
+        io.to(targetId).emit('call-answer', { answer, from });
+      });
+
+      socket.on('ice-candidate', ({ candidate, targetId, from }) => {
+        io.to(targetId).emit('ice-candidate', { candidate, from });
+      });
+
+      socket.on('call-reject', ({ targetId }) => {
+        io.to(targetId).emit('call-reject');
+      });
+
+      socket.on('call-end', ({ data }) => {
+        if (!data || !data.targetId) {
+          return;
+        }
+        const { targetId } = data;
+        io.to(targetId).emit('call-end');
       });
     } catch (error) {
       console.error('Error during socket connection:', error);

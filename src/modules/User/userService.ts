@@ -67,5 +67,8 @@ class UserService {
       isOnline: onlineUserIds.includes((user._id as any).toString()),
     }));
   }
+  async findUserById(id: string) {
+    return await User.findById(id);
+  }
 }
 export default new UserService();

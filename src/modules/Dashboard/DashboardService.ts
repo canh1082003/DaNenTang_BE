@@ -1,15 +1,18 @@
-
-import Conversation from "../../databases/entities/Conversation";
-import Platform from "../../databases/entities/Platform";
-import Message from "../../databases/entities/Message";
+import Conversation from '../../databases/entities/Conversation';
+import Platform from '../../databases/entities/Platform';
+import Message from '../../databases/entities/Message';
 
 class DashboardService {
   /**
    * Lấy tổng quan dashboard
    */
   async getDashboardSummary() {
-    const totalConversations = await Conversation.countDocuments();
-    const activePlatforms = await Platform.countDocuments({ status: 'connected' });
+    // Đếm tổng số conversation
+    const conversations = await Conversation.find({});
+    const totalConversations = conversations.length;
+
+    const platforms = await Platform.find({ status: 'connected' });
+    const activePlatforms = platforms.length;
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -18,7 +21,6 @@ class DashboardService {
       createdAt: { $gte: startOfToday },
     });
 
-    // Sau này có thể tính toán tỉ lệ phản hồi thật
     const responseRate = 98.5;
 
     return {
@@ -39,13 +41,6 @@ class DashboardService {
       .populate('lastMessage')
       .populate('participants', 'username avatar')
       .lean();
-  }
-
-  /**
-   * Lấy trạng thái của tất cả nền tảng
-   */
-  async getPlatformStatus() {
-    return await Platform.find({}, 'name status connectedAt disconnectedAt');
   }
 }
 

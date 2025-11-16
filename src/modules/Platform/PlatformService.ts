@@ -1,8 +1,8 @@
-import { getIO } from "@/socket";
-import Platform from "../../databases/entities/Platform";
+import Message from "@/databases/entities/Message";
+import Platform, { IPlatform } from "../../databases/entities/Platform";
 import FacebookService from "../Facebook/FacebookService";
-import { updatePlatformState } from "@/init/platformStateManager";
 import TelegramService from "../Telegram/TelegramService";
+import Conversation from "@/databases/entities/Conversation";
 
 class PlatformService {
   async getAllPlatforms() {
@@ -29,19 +29,18 @@ class PlatformService {
   //   );
   // }
   async connectPlatform(platform: string) {
-    const io = getIO();
     const lower = platform.toLowerCase();
 
     try {
       switch (lower) {
         case 'facebook':
           await FacebookService.ConnectFacebookWebhook();
-          updatePlatformState('Facebook', 'connected', io);
+          await this.updatePlatformStatus("Facebook", "connected");
           break;
 
         case 'telegram':
           await TelegramService.registerTelegramWebhookDirect();
-          updatePlatformState('Telegram', 'connected', io);
+          await this.updatePlatformStatus("Telegram", "connected");
           break;
 
         default:
@@ -61,19 +60,18 @@ class PlatformService {
     }
   }
    async disconnectPlatform(platform: string) {
-    const io = getIO();
     const lower = platform.toLowerCase();
 
     try {
       switch (lower) {
         case 'facebook':
           await FacebookService.DisconnectFacebookWebhook();
-          updatePlatformState('Facebook', 'disconnected', io);
+           await this.updatePlatformStatus("Facebook", "disconnected");
           break;
 
         case 'telegram':
           await TelegramService.deleteTelegramWebhookDirect();
-          updatePlatformState('Telegram', 'disconnected', io);
+          await this.updatePlatformStatus("Telegram", "disconnected");
           break;
 
         default:
@@ -92,7 +90,19 @@ class PlatformService {
       throw error;
     }
   }
+  private async updatePlatformStatus(name: string, status: string) {
+    const platformDoc = await Platform.findOne({ name });
 
+    if (!platformDoc) {
+      throw new Error(`Platform ${name} not found`);
+    }
+
+    Object.assign(platformDoc, { status });
+    await platformDoc.save();
+
+    console.log(`✅ Updated ${name} status to "${status}"`);
+    return platformDoc;
+  }
   async syncPlatform(name: string) {
     const platform = await Platform.findOne({ name });
     if (!platform){
@@ -102,6 +112,54 @@ class PlatformService {
     await platform.save();
     return platform;
   }
+  async createPlatform(data: Partial<IPlatform>) {
+    const exist = await Platform.findOne({ name: data.name });
+    if (exist) {
+      throw new Error(`Platform "${data.name}" already exists.`);
+    }
+
+    const newPlatform = await Platform.create({
+      ...data,
+      status: data.status || 'disconnected',
+    });
+
+    console.log(`🌱 Created new platform: ${newPlatform.name}`);
+    return newPlatform;
+  }
+   async getPlatformStatus() {
+      const platforms= await Platform.find({}, 'name status connectedAt disconnectedAt');
+      const enriched = await Promise.all(
+        platforms.map(async (p) => {
+          const platformName = p.name;
+
+          // 🔹 Tìm tất cả các conversation thuộc platform này
+          const conversations = await Conversation.find({
+            name: { $regex: platformName, $options: "i" },
+          })
+            .populate("participants", "_id username")
+            .lean();
+
+          // 🔹 Đếm unique user
+          const userSet = new Set<string>();
+          conversations.forEach((c) => {
+            c.participants?.forEach((u: any) => userSet.add(String(u._id)));
+          });
+
+          // 🔹 Đếm tổng số message trong các conversation đó
+          const totalMessages = await Message.countDocuments({
+            conversation: { $in: conversations.map((c) => c._id) },
+          });
+
+          return {
+            ...p,
+            totalUsers: userSet.size,
+            totalMessages,
+          };
+        })
+      );
+      return enriched;
+    }
+
 }
 
 export default new PlatformService();
