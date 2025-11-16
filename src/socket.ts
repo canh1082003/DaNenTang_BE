@@ -96,11 +96,12 @@ export const setupSocket = (server: HTTPServer, app: Application) => {
         io.to(targetId).emit('call-reject');
       });
 
-      socket.on('call-end', ({ data }) => {
-        if (!data || !data.targetId) {
+      socket.on('call-end', (payloadCall = {}) => {
+        const { targetId } = payloadCall;
+        if (!targetId) {
           return;
         }
-        const { targetId } = data;
+
         io.to(targetId).emit('call-end');
       });
     } catch (error) {
