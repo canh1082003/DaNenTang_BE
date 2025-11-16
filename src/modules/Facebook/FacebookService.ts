@@ -1,7 +1,7 @@
-import Platform from '@/databases/entities/Platform';
-import User from '@/databases/entities/User';
-import { generateEmail } from '@/hook/generateEmail';
-import { Hashing } from '@/utils/hashing';
+import Platform from '../../databases/entities/Platform';
+import User from '../../databases/entities/User';
+import { generateEmail } from '../../hook/generateEmail';
+import { Hashing } from '../../utils/hashing';
 import axios from 'axios';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';

@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import userController from './userController';
-import verifyTokenMiddleware from '@/middlewares/chat.middlewares';
+import verifyTokenMiddleware from '../../middlewares/chat.middlewares';
 import {
   GetVerifyEmailTokenMiddleWare,
   LoginMiddleware,
   RegisterMiddleware,
-} from '@/middlewares/user.middlewares';
+} from '../../middlewares/user.middlewares';
 
 export const UserRouter = Router();
 

@@ -1,7 +1,7 @@
 import { Request, NextFunction } from 'express';
 import PlatformService from './PlatformService';
-import { ResponseCustom } from '@/utils/expressCustom';
-import { HttpStatusCode } from '@/utils/httpStatusCode';
+import { ResponseCustom } from '../../utils/expressCustom';
+import { HttpStatusCode } from '../../utils/httpStatusCode';
 
 class PlatformController {
   async getAllPlatforms(req: Request, res: ResponseCustom, next: NextFunction) {

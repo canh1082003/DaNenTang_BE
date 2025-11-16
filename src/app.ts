@@ -1,7 +1,7 @@
-import config from '@/common/config';
-import BaseExceptionHandler from '@/common/exception/handler/BaseExceptionHandler';
-import logger from '@/common/logger';
-import router from '@/routes/routes';
+import config from './common/config';
+import BaseExceptionHandler from './common/exception/handler/BaseExceptionHandler';
+import logger from './common/logger';
+import router from './routes/routes';
 import cors from 'cors';
 import express, { Application, NextFunction, Request, Response } from 'express';
 import { createServer, Server as HTTPServer } from 'http';

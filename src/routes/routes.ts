@@ -1,11 +1,11 @@
-import ConversationRouter from '@/modules/conversation';
+import ConversationRouter from '../modules/conversation';
 import ChatRouter from '../modules/Chat';
 import { Router } from 'express';
-import { UserRouter } from '@/modules/User';
-import { TelegramRouter } from '@/modules/Telegram';
-import { FacebookRouter } from '@/modules/Facebook';
-import { PlatformRouter } from '@/modules/Platform';
-import { DashboardRouter } from '@/modules/Dashboard';
+import { UserRouter } from '../modules/User';
+import { TelegramRouter } from '../modules/Telegram';
+import { FacebookRouter } from '../modules/Facebook';
+import { PlatformRouter } from '../modules/Platform';
+import { DashboardRouter } from '../modules/Dashboard';
 const router = Router();
 router.use('/user', UserRouter);
 router.use('/chat', ChatRouter);

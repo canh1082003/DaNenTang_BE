@@ -1,4 +1,4 @@
-import Platform from "@/databases/entities/Platform";
+import Platform from "../../databases/entities/Platform";
 import axios from "axios";
 
 class TelegramService{

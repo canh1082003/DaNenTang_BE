@@ -2,7 +2,7 @@ import path from 'path';
 import * as winston from 'winston';
 import WinstonDaily from 'winston-daily-rotate-file';
 
-import config from '@/common/config';
+import config from '../../common/config';
 import jSONUtils from '../utils/JSONUtils';
 
 const levels = {

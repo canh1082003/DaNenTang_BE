@@ -1,10 +1,10 @@
 import { Response } from 'express';
 import { isArray } from 'lodash';
 
-import { HttpStatusCode } from '@/common/constants';
-import I18nMessage from '@/common/i18n';
-import { BodyResponse, ErrorDetail } from '@/common/interfaces/express';
-import logger from '@/common/logger';
+import { HttpStatusCode } from '../../../common/constants';
+import I18nMessage from '../../../common/i18n';
+import { BodyResponse, ErrorDetail } from '../../../common/interfaces/express';
+import logger from '../../../common/logger';
 import BaseException from '../BaseException';
 
 class BaseExceptionHandler {

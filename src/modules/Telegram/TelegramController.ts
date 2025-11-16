@@ -1,7 +1,7 @@
-import { ResponseCustom } from '@/utils/expressCustom';
+import { ResponseCustom } from '../../utils/expressCustom';
 import { NextFunction, Request } from 'express';
 import TelegramService from './TelegramService';
-import { HttpStatusCode } from '@/utils/httpStatusCode';
+import { HttpStatusCode } from '../../utils/httpStatusCode';
 import conversationService from '../conversation/conversationService';
 import chatController from '../Chat/chatController';
 import chatService from '../Chat/chatService';
@@ -10,12 +10,12 @@ import {
   detectIntent,
   getAIReply,
   getTelegramFileUrl,
-} from '@/hook/AIReply';
-import Message from '@/databases/entities/Message';
-import Conversation from '@/databases/entities/Conversation';
-import User from '@/databases/entities/User';
-import BadRequestException from '@/common/exception/BadRequestException';
-import AuthErrorCode from '@/utils/AuthErrorCode';
+} from '../../hook/AIReply';
+import Message from '../../databases/entities/Message';
+import Conversation from '../../databases/entities/Conversation';
+import User from '../../databases/entities/User';
+import BadRequestException from '../../common/exception/BadRequestException';
+import AuthErrorCode from '../../utils/AuthErrorCode';
 import { v4 as uuidv4 } from 'uuid';
 
 class TelegramController {

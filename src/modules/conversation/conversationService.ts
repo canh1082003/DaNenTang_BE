@@ -1,7 +1,7 @@
-import ForbiddenException from '@/common/exception/ForbiddenException';
-import Conversation, { IConversation } from '@/databases/entities/Conversation';
-import Message from '@/databases/entities/Message';
-import User from '@/databases/entities/User';
+import ForbiddenException from '../../common/exception/ForbiddenException';
+import Conversation, { IConversation } from '../../databases/entities/Conversation';
+import Message from '../../databases/entities/Message';
+import User from '../../databases/entities/User';
 import mongoose from 'mongoose';
 import { Types } from 'mongoose';
 

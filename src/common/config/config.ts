@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { ENV } from '@/common/interfaces/env';
+import { ENV } from '../../common/interfaces/env';
 dotenv.config();
 class ConfigService {
   getEnv(key: keyof ENV): string {

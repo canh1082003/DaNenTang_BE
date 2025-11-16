@@ -1,5 +1,5 @@
-import Conversation from '@/databases/entities/Conversation';
-import Message, { IMessage } from '@/databases/entities/Message';
+import Conversation from '../../databases/entities/Conversation';
+import Message, { IMessage } from '../../databases/entities/Message';
 
 class ChatService {
   async SendMessage(

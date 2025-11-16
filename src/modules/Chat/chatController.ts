@@ -1,14 +1,14 @@
-import { HttpStatusCode } from '@/common/constants';
+import { HttpStatusCode } from '../../common/constants';
 import { NextFunction, Request, Response } from 'express';
 import chatService from './chatService';
 import { validationResult } from 'express-validator';
 import 'express-async-errors';
-import BadRequestException from '@/common/exception/BadRequestException';
-import { AuthenticatedRequest } from '@/hook/AuthenticatedRequest';
-import Conversation from '@/databases/entities/Conversation';
-import Message from '@/databases/entities/Message';
+import BadRequestException from '../../common/exception/BadRequestException';
+import { AuthenticatedRequest } from '../../hook/AuthenticatedRequest';
+import Conversation from '../../databases/entities/Conversation';
+import Message from '../../databases/entities/Message';
 import axios from 'axios';
-import { bot, sendTelegramDocument } from '@/hook/AIReply';
+import { bot, sendTelegramDocument } from '../../hook/AIReply';
 import FormData from 'form-data';
 
 class ChatController {

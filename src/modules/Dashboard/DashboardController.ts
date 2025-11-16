@@ -1,7 +1,7 @@
 import { Request, NextFunction } from 'express';
 import DashboardService from './DashboardService';
-import { ResponseCustom } from '@/utils/expressCustom';
-import { HttpStatusCode } from '@/utils/httpStatusCode';
+import { ResponseCustom } from '../../utils/expressCustom';
+import { HttpStatusCode } from '../../utils/httpStatusCode';
 
 class DashboardController {
   async getDashboardSummary(

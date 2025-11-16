@@ -1,9 +1,9 @@
-import BadRequestException from '@/common/exception/BadRequestException';
-import User from '@/databases/entities/User';
-import AuthErrorCode from '@/utils/AuthErrorCode';
+import BadRequestException from '../../common/exception/BadRequestException';
+import User from '../../databases/entities/User';
+import AuthErrorCode from '../../utils/AuthErrorCode';
 import { randomBytes } from 'crypto';
 import { UserInterFace } from './type';
-import { Hashing } from '@/utils/hashing';
+import { Hashing } from '../../utils/hashing';
 class UserService {
   async register(username: string, email: string, password: string) {
     const hashingPassword = await Hashing.toHash(password);

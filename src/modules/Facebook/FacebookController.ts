@@ -1,18 +1,18 @@
-import BadRequestException from '@/common/exception/BadRequestException';
-import { detectIntent, getAIReply, getUserName } from '@/hook/AIReply';
-import { AuthenticatedRequest } from '@/hook/AuthenticatedRequest';
-import AuthErrorCode from '@/utils/AuthErrorCode';
-import { ResponseCustom } from '@/utils/expressCustom';
-import { HttpStatusCode } from '@/utils/httpStatusCode';
+import BadRequestException from '../../common/exception/BadRequestException';
+import { detectIntent, getAIReply, getUserName } from '../../hook/AIReply';
+import { AuthenticatedRequest } from '../../hook/AuthenticatedRequest';
+import AuthErrorCode from '../../utils/AuthErrorCode';
+import { ResponseCustom } from '../../utils/expressCustom';
+import { HttpStatusCode } from '../../utils/httpStatusCode';
 import { NextFunction, Request , Response } from 'express';
 import { validationResult } from 'express-validator';
 import FacebookService from './FacebookService';
 import axios from 'axios';
-import User from '@/databases/entities/User';
-import Conversation from '@/databases/entities/Conversation';
+import User from '../../databases/entities/User';
+import Conversation from '../../databases/entities/Conversation';
 import conversationService from '../conversation/conversationService';
 import chatService from '../Chat/chatService';
-import Message from '@/databases/entities/Message';
+import Message from '../../databases/entities/Message';
 import { v4 as uuidv4 } from 'uuid';
 
 class FacebookRouterController {

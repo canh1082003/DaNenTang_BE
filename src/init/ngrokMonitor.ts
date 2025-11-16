@@ -90,10 +90,10 @@
 //     wasNgrokAlive = false;
 //   }
 // }
-import TelegramService from "@/modules/Telegram/TelegramService";
-import FacebookService from "@/modules/Facebook/FacebookService";
+import TelegramService from "../modules/Telegram/TelegramService";
+import FacebookService from "../modules/Facebook/FacebookService";
 import axios from "axios";
-import { getIO } from "@/socket";
+import { getIO } from "../socket";
 export const platformState = {
   Facebook: "disconnected",
   Telegram: "disconnected",

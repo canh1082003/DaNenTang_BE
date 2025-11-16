@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import { AuthenticatedRequest } from '@/hook/AuthenticatedRequest';
+import { AuthenticatedRequest } from '../hook/AuthenticatedRequest';
 import { Response, NextFunction } from 'express';
 
 dotenv.config();

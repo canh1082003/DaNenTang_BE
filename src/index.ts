@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import 'reflect-metadata';
 
-import App from '@/app';
+import App from './app';
 import { setupSocket } from './socket';
 // import { verifyNgrokHealth } from './init/ngrokMonitor';
 

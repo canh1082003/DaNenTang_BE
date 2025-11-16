@@ -1,7 +1,7 @@
 import isArray from 'lodash/isArray';
 
-import { ErrorArgs } from '@/common/interfaces/error';
-import { ErrorDetail } from '@/common/interfaces/express';
+import { ErrorArgs } from '../../common/interfaces/error';
+import { ErrorDetail } from '../../common/interfaces/express';
 
 export default class BaseException extends Error {
   public readonly httpCode: number;

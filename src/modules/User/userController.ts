@@ -1,17 +1,17 @@
 import { NextFunction, Request, Response } from 'express';
 import userRouterService from './userService';
-import { HttpStatusCode } from '@/common/constants';
-import BadRequestException from '@/common/exception/BadRequestException';
-import AuthErrorCode from '@/utils/AuthErrorCode';
+import { HttpStatusCode } from '../../common/constants';
+import BadRequestException from '../../common/exception/BadRequestException';
+import AuthErrorCode from '../../utils/AuthErrorCode';
 import 'express-async-errors';
 import { validationResult } from 'express-validator';
-import { ResponseCustom } from '@/utils/expressCustom';
-import { Hashing } from '@/utils/hashing';
+import { ResponseCustom } from '../../utils/expressCustom';
+import { Hashing } from '../../utils/hashing';
 import jwt from 'jsonwebtoken';
-import { sendEmail } from '@/utils/mail';
-import Unauthorized from '@/common/exception/Unauthorized';
-import { clientMap } from '@/socket';
-import { AuthenticatedRequest } from '@/hook/AuthenticatedRequest';
+import { sendEmail } from '../../utils/mail';
+import Unauthorized from '../../common/exception/Unauthorized';
+import { clientMap } from '../../socket';
+import { AuthenticatedRequest } from '../../hook/AuthenticatedRequest';
 
 class UserController {
   async Register(req: Request, res: ResponseCustom, next: NextFunction) {

@@ -1,7 +1,7 @@
-import { HttpStatusCode } from '@/common/constants';
+import { HttpStatusCode } from '../../common/constants';
 import { NextFunction, Request, Response } from 'express';
 import conversationService from './conversationService';
-import { AuthenticatedRequest } from '@/hook/AuthenticatedRequest';
+import { AuthenticatedRequest } from '../../hook/AuthenticatedRequest';
 class ConversationController {
   async createPrivateConversation(
     req: AuthenticatedRequest,

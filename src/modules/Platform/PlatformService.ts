@@ -1,8 +1,8 @@
-import Message from "@/databases/entities/Message";
+import Message from "../../databases/entities/Message";
 import Platform, { IPlatform } from "../../databases/entities/Platform";
 import FacebookService from "../Facebook/FacebookService";
 import TelegramService from "../Telegram/TelegramService";
-import Conversation from "@/databases/entities/Conversation";
+import Conversation from "../../databases/entities/Conversation";
 
 class PlatformService {
   async getAllPlatforms() {

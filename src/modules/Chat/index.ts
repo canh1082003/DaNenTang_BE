@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import chatController from './chatController';
-import verifyTokenMiddleware from '@/middlewares/chat.middlewares';
-import uploadCloud from '@/utils/upload';
+import verifyTokenMiddleware from '../../middlewares/chat.middlewares';
+import uploadCloud from '../../utils/upload';
 const ChatRouter = Router();
 
 ChatRouter.post(

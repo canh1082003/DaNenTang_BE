@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import conversationController from './conversationController';
-import verifyTokenMiddleware from '@/middlewares/chat.middlewares';
+import verifyTokenMiddleware from '../../middlewares/chat.middlewares';
 
 const ConversationRouter = Router();
 
