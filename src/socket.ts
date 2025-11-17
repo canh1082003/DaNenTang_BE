@@ -81,7 +81,10 @@ export const setupSocket = (server: HTTPServer, app: Application) => {
         });
       });
       socket.on('call-offer', ({ offer, targetId, from }) => {
-        io.to(targetId).emit('call-offer', { offer, from });
+        io.to(targetId).emit('call-offer', {
+          offer,
+          from
+        });
       });
 
       socket.on('call-answer', ({ answer, targetId, from }) => {

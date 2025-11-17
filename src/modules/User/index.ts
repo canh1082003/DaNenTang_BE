@@ -37,3 +37,4 @@ UserRouter.get(
   userController.getAllUsersWithOnlineStatus
 );
 UserRouter.get('/getUser', verifyTokenMiddleware, userController.getUser);
+UserRouter.get('/getUserById/:userId', userController.getUserById);

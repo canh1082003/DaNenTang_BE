@@ -260,6 +260,25 @@ async getUser(req: AuthenticatedRequest, res: ResponseCustom, next: NextFunction
       next(error);
     }
   }
+  async getUserById(req: AuthenticatedRequest, res: ResponseCustom, next: NextFunction) {
+    try {
+      const {userId} = req.params;
+      if (!userId) {
+        throw new Unauthorized({
+          errorCode: AuthErrorCode.NOT_FOUND,
+          errorMessage: 'User not found',
+        });
+      }
 
+      const user = await userRouterService.findUserById(userId);
+      return res.status(HttpStatusCode.OK).json({
+        httpStatusCode: HttpStatusCode.OK,
+        data: user,
+      });
+    } catch (error) {
+      console.log(error);
+      next(error);
+    }
+  }
 }
 export default new UserController();
