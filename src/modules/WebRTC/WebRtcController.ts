@@ -5,7 +5,7 @@ class WebRtcController {
     try {
       const client = twilio(
         process.env.TWILIO_SSID,
-        process.env.TWILIO_SERCET,
+        process.env.TWILIO_SECRET,
          { accountSid: process.env.TWILIO_ACCOUNT_SID }
       );
       const token = await client.tokens.create();
