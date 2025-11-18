@@ -107,17 +107,17 @@ class UserController {
         });
       }
       const activeUsers = new Set<string>(); // giữ nguyên
-    const MAX_ACTIVE_USERS = Number(process.env.MAX_ACTIVE_USERS); // fallback 50 nếu chưa set env
+      const MAX_ACTIVE_USERS = Number(process.env.MAX_ACTIVE_USERS); // fallback 50 nếu chưa set env
       if (activeUsers.size >= MAX_ACTIVE_USERS && !activeUsers.has(user.id)) {
-      return res.status(HttpStatusCode.TOO_MANY_REQUESTS).json({
-        httpStatusCode: HttpStatusCode.TOO_MANY_REQUESTS,
-        data: "Hệ thống đang quá tải, vui lòng thử lại sau vài phút.",
-      });
-    }
+        return res.status(HttpStatusCode.TOO_MANY_REQUESTS).json({
+          httpStatusCode: HttpStatusCode.TOO_MANY_REQUESTS,
+          data: 'Hệ thống đang quá tải, vui lòng thử lại sau vài phút.',
+        });
+      }
 
-    // ✅ Đánh dấu user là đang login
-    activeUsers.add(user.id);
-    console.log(activeUsers);
+      // ✅ Đánh dấu user là đang login
+      activeUsers.add(user.id);
+      console.log(activeUsers);
       const token = jwt.sign(
         { id: user.id },
         process.env.JWT_SECRET || 'your-secret-key',
@@ -130,7 +130,7 @@ class UserController {
           email: user.email,
           username: user.username,
           isVerifyEmail: user.isVerifyEmail,
-          role:user.role,
+          role: user.role,
           department: user.department,
           token,
         },
@@ -224,23 +224,27 @@ class UserController {
     }
   }
   Logout(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  try {
-    const userId = req.user?.id;
+    try {
+      const userId = req.user?.id;
       const activeUsers = new Set<string>();
-    if (userId) {
-      activeUsers.delete(userId);
-    }
+      if (userId) {
+        activeUsers.delete(userId);
+      }
 
-    return res.status(200).json({
-      httpStatusCode: 200,
-      data: "Đăng xuất thành công",
-      activeNow: activeUsers.size,
-    });
-  } catch (error) {
-    next(error);
+      return res.status(200).json({
+        httpStatusCode: 200,
+        data: 'Đăng xuất thành công',
+        activeNow: activeUsers.size,
+      });
+    } catch (error) {
+      next(error);
+    }
   }
-}
-async getUser(req: AuthenticatedRequest, res: ResponseCustom, next: NextFunction) {
+  async getUser(
+    req: AuthenticatedRequest,
+    res: ResponseCustom,
+    next: NextFunction
+  ) {
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -260,9 +264,13 @@ async getUser(req: AuthenticatedRequest, res: ResponseCustom, next: NextFunction
       next(error);
     }
   }
-  async getUserById(req: AuthenticatedRequest, res: ResponseCustom, next: NextFunction) {
+  async getUserById(
+    req: Request,
+    res: ResponseCustom,
+    next: NextFunction
+  ) {
     try {
-      const {userId} = req.params;
+      const { userId } = req.params;
       if (!userId) {
         throw new Unauthorized({
           errorCode: AuthErrorCode.NOT_FOUND,
