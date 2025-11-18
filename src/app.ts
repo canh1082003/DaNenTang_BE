@@ -18,16 +18,11 @@ export class App {
     this.errorHandler();
   }
   private middlewares() {
-    // this.app.use(cors());
-    this.app.use(
+   this.app.use(
   cors({
-    origin: [
-      "https://danentang-fe.onrender.com", 
-      "http://localhost:5173"
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
   })
 );
 
@@ -62,7 +57,6 @@ export class App {
       logger.error(error);
     }
   }
-
 }
 
 export default new App();
