@@ -11,8 +11,9 @@
     "paths": {
       "@/*": ["./*"]
     },
-   "lib": ["ESNext", "DOM"],
-    "types": ["node"],
+    "lib": ["ESNext", "DOM"],
+    "typeRoots": ["./node_modules/@types", "./src/types"],
+    "types": ["node", "express"],
     "skipLibCheck": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
@@ -27,6 +28,6 @@
     "resolveJsonModule": true,
     "strictNullChecks": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*","src/types"],
   "exclude": ["node_modules", "**/*.spec.ts", "__tests__", "jest.config.ts"]
 }

@@ -6,7 +6,7 @@ import { TelegramRouter } from '../modules/Telegram';
 import { FacebookRouter } from '../modules/Facebook';
 import { PlatformRouter } from '../modules/Platform';
 import { DashboardRouter } from '../modules/Dashboard';
-import { WebRtcRouter } from '@/modules/WebRTC';
+import { WebRtcRouter } from '../modules/WebRTC';
 const router = Router();
 router.use('/user', UserRouter);
 router.use('/chat', ChatRouter);

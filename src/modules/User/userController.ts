@@ -20,7 +20,7 @@ class UserController {
       throw new BadRequestException(errors.array());
     }
     try {
-      const { username, email, password, confirmPassword } = req.body;
+      const { username, email, password, confirmPassword ,department } = req.body;
       if (password !== confirmPassword) {
         throw new BadRequestException({
           errorCode: AuthErrorCode.NOT_MATCH,
@@ -34,9 +34,12 @@ class UserController {
           errorMessage: 'User Already exists',
         });
       }
-      const user = await userRouterService.register(username, email, password);
+      const user = await userRouterService.register(username, email, password,department);
       const token = jwt.sign(
-        { id: user.id },
+        {
+          id: user.id,
+          role: user.role,
+        },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '24h' }
       );
@@ -117,9 +120,8 @@ class UserController {
 
       // ✅ Đánh dấu user là đang login
       activeUsers.add(user.id);
-      console.log(activeUsers);
       const token = jwt.sign(
-        { id: user.id },
+        { id: user.id, role: user.role },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '24h' }
       );
@@ -132,6 +134,7 @@ class UserController {
           isVerifyEmail: user.isVerifyEmail,
           role: user.role,
           department: user.department,
+          avatar: user.avatar,
           token,
         },
       });
@@ -182,10 +185,17 @@ class UserController {
       next(error);
     }
   }
-  async UpdateUserById(req: Request, res: ResponseCustom, next: NextFunction) {
+  async UpdateUserById(
+    req: AuthenticatedRequest,
+    res: ResponseCustom,
+    next: NextFunction
+  ) {
     try {
       const { id } = req.params;
       const data = req.body;
+      if (req.file) {
+        data.avatar = req.file.path;
+      }
       const user = await userRouterService.updateUserById(id, data);
       return res.status(HttpStatusCode.OK).json({
         httpStatusCode: HttpStatusCode.OK,
@@ -264,11 +274,7 @@ class UserController {
       next(error);
     }
   }
-  async getUserById(
-    req: Request,
-    res: ResponseCustom,
-    next: NextFunction
-  ) {
+  async getUserById(req: Request, res: ResponseCustom, next: NextFunction) {
     try {
       const { userId } = req.params;
       if (!userId) {
@@ -288,5 +294,66 @@ class UserController {
       next(error);
     }
   }
+  async CreateStaff(req: Request, res: ResponseCustom, next: NextFunction) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new BadRequestException(errors.array());
+  }
+
+  try {
+    const { username, email, password, confirmPassword, department } = req.body;
+
+    if (password !== confirmPassword) {
+      throw new BadRequestException({
+        errorCode: AuthErrorCode.NOT_MATCH,
+        errorMessage: 'Password not match',
+      });
+    }
+
+    const userExists = await userRouterService.findUserByEmail(email);
+    if (userExists) {
+      throw new BadRequestException({
+        errorCode: AuthErrorCode.EXISTS_USER,
+        errorMessage: 'User Already exists',
+      });
+    }
+    // Create staff via service
+    const user = await userRouterService.createStaff({
+      username,
+      email,
+      password,
+      department,
+    });
+
+    return res.status(HttpStatusCode.CREATED).json({
+      httpStatusCode: HttpStatusCode.CREATED,
+      data: { id: user.id, email: user.email, role: user.role },
+    });
+
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+}
+async SearchUser(req: AuthenticatedRequest, res: ResponseCustom, next: NextFunction) {
+  try {
+    const { keyword } = req.query;
+    if (!keyword || typeof keyword !== 'string') {
+      throw new BadRequestException({
+        errorCode: AuthErrorCode.INVALID_QUERY,
+        errorMessage: 'Query parameter "key word" is required and must be a string',
+      });
+    }
+    const allUsers = await userRouterService.searchStaff(keyword);
+    return res.status(HttpStatusCode.OK).json({
+      httpStatusCode: HttpStatusCode.OK,
+      data: allUsers,
+    });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+}
+
 }
 export default new UserController();

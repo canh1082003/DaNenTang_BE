@@ -43,6 +43,12 @@ const RegisterMiddleware = checkSchema({
       },
     },
   },
+   department: {
+    notEmpty: true,
+    errorMessage: {
+      msg: 'Department is required',
+    },
+  },
 });
 
 const LoginMiddleware = checkSchema({

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import conversationController from './conversationController';
 import verifyTokenMiddleware from '../../middlewares/chat.middlewares';
+import verifyAdminRole from '../../middlewares/auth.middlewares';
 
 const ConversationRouter = Router();
 
@@ -46,7 +47,6 @@ ConversationRouter.get(
   conversationController.getFullConversation
 );
 
-// xóa tin nhắn (cho chính mình hoặc cho tất cả mọi người)
 ConversationRouter.delete(
   '/message/:messageId',
   verifyTokenMiddleware,
@@ -63,6 +63,7 @@ ConversationRouter.delete(
 ConversationRouter.get(
   '/admin/all',
   verifyTokenMiddleware,
+  verifyAdminRole,
   conversationController.getAllConversationsForAdmin
 );
 

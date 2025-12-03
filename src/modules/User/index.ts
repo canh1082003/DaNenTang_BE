@@ -6,20 +6,33 @@ import {
   LoginMiddleware,
   RegisterMiddleware,
 } from '../../middlewares/user.middlewares';
+import uploadCloud from '../../utils/upload';
+import verifyAdminRole, { verifyOwnerOrAdmin } from '../../middlewares/auth.middlewares';
 
 export const UserRouter = Router();
 
-UserRouter.post('/register', RegisterMiddleware, userController.Register);
-UserRouter.get('/all', userController.getAllUser);
+UserRouter.post('/register', RegisterMiddleware,verifyTokenMiddleware,verifyAdminRole, userController.Register);
+UserRouter.post(
+  '/admin/create-staff',
+  verifyTokenMiddleware,
+  verifyAdminRole,
+  userController.CreateStaff
+);
+
+UserRouter.get('/all',verifyTokenMiddleware,verifyAdminRole, userController.getAllUser);
 UserRouter.post('/login', LoginMiddleware, userController.Login);
 UserRouter.get('/logout', verifyTokenMiddleware, userController.Logout);
 UserRouter.put(
   '/update/:id',
+  uploadCloud.single('avatar'),
   verifyTokenMiddleware,
+  verifyOwnerOrAdmin,
   userController.UpdateUserById
 );
 UserRouter.delete(
   '/deleteUser/:id',
+   verifyTokenMiddleware,
+    verifyAdminRole,
   userController.deleteUserById
 );
 UserRouter.post(
@@ -38,3 +51,9 @@ UserRouter.get(
 );
 UserRouter.get('/getUser', verifyTokenMiddleware, userController.getUser);
 UserRouter.get('/getUserById/:userId', userController.getUserById);
+UserRouter.get(
+  "/search",
+  verifyTokenMiddleware,
+  userController.SearchUser
+);
+

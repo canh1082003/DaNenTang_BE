@@ -18,6 +18,7 @@ export class App {
     this.errorHandler();
   }
   private middlewares() {
+    this.app.use(cors());
    this.app.use(
   cors({
     origin: "*",

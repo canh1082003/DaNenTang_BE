@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import { UserInterFace } from './type';
 import { Hashing } from '../../utils/hashing';
 class UserService {
-  async register(username: string, email: string, password: string) {
+  async register(username: string, email: string, password: string,department: string) {
     const hashingPassword = await Hashing.toHash(password);
     const verifyEmailToken = randomBytes(8).toString('hex');
     const user = new User({
@@ -14,6 +14,7 @@ class UserService {
       password: hashingPassword,
       role: 'user',
       verifyEmailToken,
+      department,
     });
     return await user.save();
   }
@@ -70,5 +71,30 @@ class UserService {
   async findUserById(id: string) {
     return await User.findById(id);
   }
+  async createStaff({ username, email, password, department }) {
+  const hashingPassword = await Hashing.toHash(password);
+  const verifyEmailToken = randomBytes(8).toString("hex");
+
+  const user = new User({
+    username,
+    email,
+    password: hashingPassword,
+    role:"staff",
+    verifyEmailToken,
+    department,
+  });
+
+  return await user.save();
+}
+async searchStaff(keyword: string) {
+  return await User.find({
+    role: "staff",
+    $or: [
+      { username: { $regex: keyword, $options: "i" } },
+      { email: { $regex: keyword, $options: "i" } }
+    ]
+  });
+}
+
 }
 export default new UserService();

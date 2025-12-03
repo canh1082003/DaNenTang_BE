@@ -21,7 +21,7 @@ export const sendEmail = (option: emailOptions) => {
     from: 'info@mailtrap.club',
     to: option.email,
     subject: option.subject,
-    text: option.message,
+    text:option.message,
   };
   transporter.sendMail(mailOptions);
 };
