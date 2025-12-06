@@ -16,7 +16,7 @@ const RegisterMiddleware = checkSchema({
     },
     notEmpty: {
       errorMessage: {
-        msg: 'Email is required',
+        msg: 'Bạn Chưa Nhập Email ',
       },
     },
     normalizeEmail: true,
@@ -25,13 +25,13 @@ const RegisterMiddleware = checkSchema({
     isString: true,
     notEmpty: {
       errorMessage: {
-        msg: 'Password is required',
+        msg: 'Bạn Chưa Nhập Mật Khẩu',
       },
     },
     isLength: {
       options: { min: 6 },
       errorMessage: {
-        msg: 'Password must be at least 6 characters long',
+        msg: 'Mật khẩu phải có ít nhất 6 ký tự',
       },
     },
   },
@@ -55,12 +55,12 @@ const LoginMiddleware = checkSchema({
   email: {
     isEmail: {
       errorMessage: {
-        msg: 'Please enter a valid email address',
+        msg: 'Bạn Chưa Nhập Email hợp lệ',
       },
     },
     notEmpty: {
       errorMessage: {
-        msg: 'Email is required',
+        msg: 'Bạn Chưa Nhập Email',
       },
     },
     normalizeEmail: true,
@@ -69,13 +69,13 @@ const LoginMiddleware = checkSchema({
     isString: true,
     notEmpty: {
       errorMessage: {
-        msg: 'Password is required',
+        msg: 'Bạn Chưa Nhập Mật Khẩu',
       },
     },
     isLength: {
       options: { min: 6 },
       errorMessage: {
-        msg: 'Password must be at least 6 characters long',
+        msg: 'Mật khẩu phải có ít nhất 6 ký tự',
       },
     },
   },

@@ -24,7 +24,7 @@ export const setupSocket = (server: HTTPServer, app: Application) => {
       );
       const userId = (payload as { id: string }).id;
       clientMap.set(userId, socket.id);
-      console.log('Client connected:', socket.id, payload);
+      // console.log('Client connected:', socket.id, payload);
 
       socket.broadcast.emit('userOnline', {
         userId,

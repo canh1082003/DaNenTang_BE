@@ -20,7 +20,7 @@ UserRouter.post(
 );
 
 UserRouter.get('/all',verifyTokenMiddleware,verifyAdminRole, userController.getAllUser);
-UserRouter.post('/login', LoginMiddleware, userController.Login);
+UserRouter.post('/login', LoginMiddleware,userController.Login);
 UserRouter.get('/logout', verifyTokenMiddleware, userController.Logout);
 UserRouter.put(
   '/update/:id',

@@ -7,6 +7,8 @@ import express, { Application, NextFunction, Request, Response } from 'express';
 import { createServer, Server as HTTPServer } from 'http';
 import helmet from 'helmet';
 import { connectDatabase } from './databases';
+import { onlineLimiter } from './middlewares/onlineLimiter';
+import { requestLimiter } from './middlewares/requestLimiter';
 export class App {
   public app: Application;
   public server: HTTPServer;
@@ -18,15 +20,16 @@ export class App {
     this.errorHandler();
   }
   private middlewares() {
+    this.app.use(onlineLimiter);
+    this.app.use(requestLimiter(50, 60));
     this.app.use(cors());
-   this.app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
-  })
-);
-
+    this.app.use(
+      cors({
+        origin: '*',
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+      })
+    );
     this.app.use(helmet());
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
