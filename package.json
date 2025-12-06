@@ -41,6 +41,7 @@
     "nodemailer": "^7.0.3",
     "number-precision": "^1.6.0",
     "openai": "^5.22.0",
+    "redis": "^5.10.0",
     "reflect-metadata": "^0.1.13",
     "socket.io": "^4.8.1",
     "swagger-jsdoc": "^6.2.8",

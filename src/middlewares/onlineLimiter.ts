@@ -8,10 +8,10 @@ export const onlineLimiter = async (req, res, next) => {
       return next();
     }
 
-    await redis.sadd("online_users", userId);
+    await redis.sAdd("online_users", userId);
     await redis.expire("online_users", 60); // auto remove sau 60s
 
-    const online = await redis.scard("online_users");
+    const online = await redis.sCard("online_users");
 
     if (online > 1) {
       return res.status(503).json({

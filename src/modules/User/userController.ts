@@ -191,13 +191,13 @@ class UserController {
     }
 
     // 1. Add user to Redis SET (global list)
-    await redis.sadd("online_users", user.id);
+    await redis.sAdd("online_users", user.id);
 
     // 2. TTL riêng cho từng user
-    await redis.set(`online_user:${user.id}`, "1", "EX", 60);
+    await redis.set(`online_user:${user.id}`, "1", { EX: 60 });
 
     // 3. Dọn dẹp user đã hết hạn (dùng GET để tránh lỗi EXISTS)
-    const userIds = await redis.smembers("online_users");
+    const userIds = await redis.sMembers("online_users");
     for (const id of userIds) {
       // eslint-disable-next-line no-await-in-loop
       const stillAlive = await redis.get(`online_user:${id}`);
@@ -208,12 +208,12 @@ class UserController {
     }
 
     // 4. Lấy số user online
-    const onlineCount = await redis.scard("online_users");
+    const onlineCount = await redis.sCard("online_users");
     const MAX_ACTIVE_USERS = Number(process.env.MAX_ACTIVE_USERS || 50);
 
     // 5. Kiểm tra limit
     if (onlineCount > MAX_ACTIVE_USERS) {
-      await redis.srem("online_users", user.id);
+      await redis.sRem("online_users", user.id);
       await redis.del(`online_user:${user.id}`);
 
       return res.status(HttpStatusCode.SERVICE_UNAVAILABLE).json({

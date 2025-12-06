@@ -20,7 +20,7 @@ export const requestLimiter = (maxReq: number, windowSec: number) => {
         await redis.expire(key, windowSec);
       }
       if (count > maxReq) {
-        await redis.set(`blocked_user:${userId}`, "1", "EX", 7200);
+        await redis.set(`blocked_user:${userId}`, "1", { EX: 2 * 60 * 60 });
         return res.status(403).json({
           message: "Bạn đã spam quá nhiều. Tài khoản bị khoá trong 2 giờ.",
         });
