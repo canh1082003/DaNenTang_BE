@@ -8,7 +8,7 @@ import {
 } from '../../middlewares/user.middlewares';
 import uploadCloud from '../../utils/upload';
 import verifyAdminRole, { verifyOwnerOrAdmin } from '../../middlewares/auth.middlewares';
-import { loginLimiter } from '@/middlewares/loginLimiter.ts 17';
+import { loginLimiter } from '../../middlewares/loginLimiter';
 
 export const UserRouter = Router();
 

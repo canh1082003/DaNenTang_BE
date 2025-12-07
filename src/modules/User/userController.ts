@@ -172,6 +172,7 @@ class UserController {
   }
 
   try {
+    console.log("âlooooo");
     const { email, password } = req.body;
     const user = await userRouterService.findUserByEmail(email);
     if (!user) {
