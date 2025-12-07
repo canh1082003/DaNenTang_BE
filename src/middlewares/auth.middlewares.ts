@@ -54,7 +54,7 @@ export const verifyOwnerOrAdmin = (req, res, next) => {
 export const checkUserInConversation = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const conversationId = req.body.conversationId;
+    const conversationId = req.params.conversationId;
     console.log(userId,conversationId);
     if (!conversationId) {
       return res.status(400).json({ message: 'Thiếu conversationId' });
