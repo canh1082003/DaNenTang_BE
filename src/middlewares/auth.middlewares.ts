@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../hook/AuthenticatedRequest';
+import Conversation from '../databases/entities/Conversation';
 
 const unauthorizedMessage = {
   status: 403,
@@ -48,6 +49,39 @@ export const verifyOwnerOrAdmin = (req, res, next) => {
   }
 
   next();
+};
+
+export const checkUserInConversation = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const conversationId = req.body.conversationId;
+    console.log(userId,conversationId);
+    if (!conversationId) {
+      return res.status(400).json({ message: 'Thiếu conversationId' });
+    }
+
+    // Tìm conversation
+    const conversation = await Conversation.findById(conversationId);
+
+    if (!conversation) {
+      return res.status(404).json({ message: 'Không tìm thấy cuộc trò chuyện' });
+    }
+
+    // Kiểm tra user có nằm trong participants hay không
+    const isParticipant = conversation.participants.includes(userId);
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        message: 'Bạn không có quyền gửi tin nhắn trong cuộc trò chuyện này'
+      });
+    }
+
+    next();
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
 };
 
 export default verifyAdminRole;

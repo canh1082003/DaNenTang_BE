@@ -8,6 +8,7 @@ import {
 } from '../../middlewares/user.middlewares';
 import uploadCloud from '../../utils/upload';
 import verifyAdminRole, { verifyOwnerOrAdmin } from '../../middlewares/auth.middlewares';
+import { loginLimiter } from '@/middlewares/loginLimiter.ts 17';
 
 export const UserRouter = Router();
 
@@ -20,7 +21,7 @@ UserRouter.post(
 );
 
 UserRouter.get('/all',verifyTokenMiddleware,verifyAdminRole, userController.getAllUser);
-UserRouter.post('/login', LoginMiddleware,userController.Login);
+UserRouter.post('/login',loginLimiter, LoginMiddleware,userController.Login);
 UserRouter.get('/logout', verifyTokenMiddleware, userController.Logout);
 UserRouter.put(
   '/update/:id',

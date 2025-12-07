@@ -7,7 +7,6 @@ import express, { Application, NextFunction, Request, Response } from 'express';
 import { createServer, Server as HTTPServer } from 'http';
 import helmet from 'helmet';
 import { connectDatabase } from './databases';
-import { onlineLimiter } from './middlewares/onlineLimiter';
 import { requestLimiter } from './middlewares/requestLimiter';
 export class App {
   public app: Application;
@@ -20,7 +19,6 @@ export class App {
     this.errorHandler();
   }
   private middlewares() {
-    this.app.use(onlineLimiter);
     this.app.use(requestLimiter(50, 60));
     this.app.use(cors());
     this.app.use(

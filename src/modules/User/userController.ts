@@ -203,7 +203,7 @@ class UserController {
       const stillAlive = await redis.get(`online_user:${id}`);
       if (!stillAlive) {
         // eslint-disable-next-line no-await-in-loop
-        await redis.srem("online_users", id);
+        await redis.sRem("online_users", id);
       }
     }
 
