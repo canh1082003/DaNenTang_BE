@@ -1,0 +1,160 @@
+Tóm tắt ngắn (dùng cho slide giới thiệu)
+DaNenTang — Hệ thống quản lý hội thoại và chăm sóc khách hàng đa nền tảng. Hệ thống cho phép kết nối và quản lý tin nhắn từ nhiều nền tảng (Facebook, Zalo, Telegram, WebRTC...), cung cấp giao diện quản trị (dashboard) để theo dõi hội thoại, phân quyền người dùng, phân tích số liệu và hỗ trợ trả lời tự động (AI hooks). Hệ thống xây dựng bằng TypeScript: frontend React + Vite, backend Node.js + Express/TypeORM, realtime bằng WebSocket/Socket.io, caching bằng Redis, sẵn sàng chạy trong Docker.
+
+Vấn đề & Mục tiêu (slide: Bài toán & Mục tiêu)
+Vấn đề:
+Doanh nghiệp phải quản lý đồng thời nhiều kênh nhắn tin (Facebook, Zalo, Telegram...), gây khó khăn trong đồng bộ, phân công và thống kê.
+Thiếu công cụ tập trung để theo dõi toàn bộ hội thoại và KPIs chăm sóc khách hàng.
+Mục tiêu:
+Xây dựng hệ thống tập trung cho phép nhận/gửi tin nhắn đa nền tảng.
+Cung cấp dashboard cho admin để quản lý người dùng, cuộc hội thoại và báo cáo.
+Hỗ trợ realtime (tin nhắn ngay lập tức), rate-limiting, và hooks cho trả lời tự động (AI).
+Tính năng chính (slide: Tính năng)
+Kết nối đa nền tảng: Facebook, Zalo, Telegram, WebRTC.
+Chat realtime: nhận/gửi tin nhắn tức thời qua socket.
+Quản lý conversation: phân loại, gán agent, lịch sử, tìm kiếm.
+Quản lý user & phân quyền (admin, agent).
+Dashboard & analytics: thống kê số lượng cuộc gọi, phản hồi, thời gian xử lý.
+Hỗ trợ upload file/tệp đính kèm.
+Rate limiting & bảo vệ API (login limiter, request limiter).
+Hook tích hợp AI (ví dụ trong hook/AIReply.ts) để trả lời tự động.
+Logging & exception handling có cấu trúc.
+Kiến trúc hệ thống (slide: Kiến trúc)
+Frontend:
+React + TypeScript + Vite (DaNenTang_FE/src)
+Các route, components cho admin, chatbox, conversation details.
+Backend:
+Node.js + TypeScript + Express (DaNenTang_BE/src)
+Modules: Chat, Conversation, User, Platform adapters (Facebook, Zalo, Telegram), WebRTC.
+Database layer (entities trong databases/entities/) — dùng ORM (kiểu TypeORM).
+Realtime: WebSocket / socket.ts (push/pull message).
+Cache & pub/sub: Redis (config/redisClient.ts).
+DevOps: Dockerfile + ngrok monitor hỗ trợ test kết nối nền tảng ngoài.
+Testing: Jest (jest.config.ts).
+Logging & i18n: logging module, i18n folder.
+(Diagram gợi ý: Browser <-> Frontend <-> Backend API + WebSocket <-> DB/Redis <-> Platform APIs)
+
+Mô-đun chính (slide: Mô-đun)
+modules/Chat: xử lý gửi/nhận tin, mapping message -> conversation.
+modules/conversation: quản lý luồng hội thoại, trạng thái, phân quyền.
+modules/User: đăng ký, quản lý tài khoản, phân quyền.
+modules/Facebook / modules/Zalo / modules/Telegram: connector đến API nền tảng, webhook handler.
+hook/AIReply.ts: hook chèn phản hồi AI.
+init/ngrokMonitor.ts: hỗ trợ test webhook khi dev trên localhost.
+Cơ sở dữ liệu & các thực thể (slide: Data model)
+Các entity chính (tên ví dụ có trong databases/entities/):
+
+User: id, name, role, email, lastLogin...
+Conversation: id, title, platform, participants, assignedAgent...
+Message: id, conversationId, senderId, content, attachments, timestamp, status
+Platform: lưu trữ token/metadata kết nối đến Facebook/Zalo/Telegram
+ResponseStat/Logs: thống kê tương tác, thời gian phản hồi
+Quan hệ: User 1-n Message, Conversation 1-n Message, Platform 1-n Conversation.
+API chính & hợp đồng (slide: API)
+Ví dụ endpoint (tổ chức để trình bày):
+
+POST /auth/login — input: {email, password} -> output: {token, user}
+GET /conversations — params: page, q -> trả về list conversation
+GET /conversations/:id/messages — trả về history
+POST /conversations/:id/messages — body: {content, attachments, platform} -> gửi message
+POST /platforms/:id/connect — kết nối nền tảng mới
+GET /dashboard/stats — trả về số liệu analytics
+Hợp đồng mẫu (message gửi):
+Request:
+{
+"conversationId": "123",
+"content": "Xin chào",
+"attachments": []
+}
+Response:
+{
+"messageId":"m_456",
+"status":"sent",
+"timestamp":"2025-12-20T08:00:00Z"
+}
+
+Auth: JWT trên Authorization header. Các mã lỗi: 401 (Unauthorized), 403 (Forbidden), 429 (Too Many Requests), 500 (Server Error).
+
+Giao diện người dùng (slide: UI)
+Trang admin/dashboard: danh sách conversation, KPI, thống kê.
+Chatbox: lịch sử hội thoại, input gửi tin nhắn, file upload.
+Form cấu hình nền tảng: add token, callback URL.
+Gợi ý chụp màn hình: danh sách conversation, một conversation detail, trang dashboard analytics, màn hình cài đặt platform.
+Triển khai & chạy (slide: Triển khai)
+Dev:
+Chạy backend: cài deps, set ENV, npm run dev (hoặc ts-node/dev).
+Chạy frontend: npm run dev (Vite).
+Dùng ngrok để expose webhook (repo đã có init/ngrokMonitor.ts).
+Production:
+Dockerfile hiện có -> build image, docker-compose cho DB, Redis, app.
+Biến môi trường: DB_URL, REDIS_URL, JWT_SECRET, PLATFORM_API_KEYS.
+Kiểm thử:
+Unit & integration tests với Jest (__tests__).
+Test manual bằng Postman / cURL / demo frontend.
+(Nên kèm một slide ngắn: hướng dẫn nhanh deploy + env vars cần thiết)
+
+Bảo mật, hiệu năng & xử lý lỗi (slide: Chất lượng)
+Bảo mật:
+JWT auth, password hashing (hashing.ts).
+Rate limiting: loginLimiter, requestLimiter, onlineLimiter.
+Validation input, escape dữ liệu, CORS config.
+Hiệu năng:
+Redis dùng cho cache/phiên/queue.
+Index DB cho truy vấn conversation/messages.
+Robustness:
+Retry logic khi gọi APIs nền tảng bị lỗi.
+Logging & structured exceptions (exception/*).
+Circuit-breaker cho connector nền tảng (gợi ý).
+Kịch bản demo & ảnh chụp màn hình (slide: Demo)
+Gợi ý sequence để demo live (hoặc video):
+
+Đăng nhập admin.
+Mở Dashboard: chỉ số realtime.
+Vào Conversation list, chọn một conversation.
+Gửi tin nhắn từ frontend — xem realtime message xuất hiện (socket).
+Mở một webhook simulator (hoặc simulate message inbound từ modules/Facebook) và hiển thị message mới được thêm.
+Thử chức năng phân công agent và thống kê.
+Ảnh nên có: Dashboard, Conversation Detail (kèm message), config Platform page, log/error sample.
+Các rủi ro & edge cases (slide ngắn)
+Nhiều platform trả về format message khác nhau -> cần mapping.
+Message duplicate hoặc out-of-order -> cần xử lý timestamp và dedupe key.
+Mất kết nối realtime -> cần fallback polling hoặc queue.
+API rate-limits từ Facebook/Zalo -> cần backoff & retry.
+Kết quả & đánh giá (slide: Kết quả)
+Các KPI có thể báo cáo:
+Số cuộc hội thoại xử lý / ngày
+Thời gian trung bình phản hồi
+Tỷ lệ tin nhắn trả lời tự động
+Test coverage cơ bản (unit tests)
+(Nếu bạn có số liệu thực tế, đưa vào đây; nếu không, mô tả các chỉ số tiêu biểu)
+Hướng phát triển tương lai (slide: Tương lai)
+Thêm connector cho nhiều nền tảng khác (Instagram, WhatsApp Business).
+Hệ thống routing/AI agent: tự động phân loại và gán agent theo nội dung.
+Thêm chatbot nâng cao (RAG, knowledge base).
+Hệ thống queue/broker (RabbitMQ/Kafka) cho throughput lớn.
+Auto-scaling, observability (Prometheus + Grafana).
+Đề xuất bố cục slide PPT (thứ tự + thời lượng gợi ý cho 10-12 phút bảo vệ)
+Tiêu đề + Tên nhóm (30s)
+Mục tiêu & Bài toán (1 phút)
+Tổng quan giải pháp (1 phút)
+Kiến trúc hệ thống (1 phút) — kèm diagram
+Tech stack (30s)
+Mô-đun chính (1 phút) — liệt kê và 1-2 ví dụ
+Data model (30s)
+API mẫu & hợp đồng (30s)
+Giao diện & Demo screenshots (1 phút)
+Live demo (nếu có) hoặc video (2-3 phút)
+Bảo mật & kiểm thử (30s)
+Kết quả & KPI (30s)
+Khó khăn gặp phải (30s)
+Hướng phát triển (30s)
+Q&A (thời lượng tuỳ)
+Gợi ý: mỗi slide có 3–5 bullet points, sử dụng ảnh chụp màn hình và một diagram kiến trúc.
+Ghi chú thuyết trình (speaker notes ngắn)
+Slide kiến trúc: chỉ ra luồng message (user -> platform -> webhook -> backend -> socket -> frontend).
+Slide mô-đun: nêu ví dụ thực tế: khi message từ Facebook đến, controller nào xử lý (ví dụ modules/Facebook/FacebookController.ts), message được map vào Conversation và broadcast qua socket.
+Demo: tóm tắt các bước trước khi demo (env đã set, ngrok đang chạy, token platform đã connect).
+Khó khăn: liệt kê 2-3 technical challenge và cách giải quyết bạn đã áp dụng.
+Lời kết (dùng cho slide cuối)
+Tóm tắt lại mục tiêu đạt được.
+Nhấn mạnh tính năng nổi bật: realtime + multi-platform + dashboard.

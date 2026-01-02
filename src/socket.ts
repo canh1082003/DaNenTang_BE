@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import Message from './databases/entities/Message';
 import User from './databases/entities/User';
 import Conversation from './databases/entities/Conversation';
+import chatService from './modules/Chat/chatService';
 let io: SocketIOServer;
 export const clientMap = new Map<string, string>();
 export const setupSocket = (server: HTTPServer, app: Application) => {
@@ -24,7 +25,7 @@ export const setupSocket = (server: HTTPServer, app: Application) => {
       );
       const userId = (payload as { id: string }).id;
       clientMap.set(userId, socket.id);
-      // console.log('Client connected:', socket.id, payload);
+      console.log('Client connected:', socket.id, payload);
 
       socket.broadcast.emit('userOnline', {
         userId,
@@ -66,6 +67,21 @@ export const setupSocket = (server: HTTPServer, app: Application) => {
           console.error('markAsRead error:', error);
         }
       });
+      socket.on('send-message', async (data) => {
+        console.log(data);
+        const message = await chatService.SendMessage(
+          {
+            conversationId: data.conversationId,
+            content: data.content,
+            type: data.type,
+            fileName: data.fileName,
+          },
+          data.from
+        );
+        console.log('DATA RECEIVED:', data);
+
+        io.to(data.conversationId).emit('new-message', message);
+      });
 
       socket.on('disconnect', async () => {
         clientMap.delete(userId);
@@ -83,7 +99,7 @@ export const setupSocket = (server: HTTPServer, app: Application) => {
       socket.on('call-offer', ({ offer, targetId, from }) => {
         io.to(targetId).emit('call-offer', {
           offer,
-          from
+          from,
         });
       });
 
@@ -99,13 +115,29 @@ export const setupSocket = (server: HTTPServer, app: Application) => {
         io.to(targetId).emit('call-reject');
       });
 
-      socket.on('call-end', (payloadCall = {}) => {
-        const { targetId } = payloadCall;
-        if (!targetId) {
+      // socket.on('call-end', (payloadCall = {}) => {
+      //   const { targetId } = payloadCall;
+      //   if (!targetId) {
+      //     return;
+      //   }
+
+      //   io.to(targetId).emit('call-end');
+      // });
+      // socket.on('call-end', (payloadCall = {}) => {
+      //   const { targetId, from } = payloadCall;
+      //   if (!targetId || !from) {
+      //     return;
+      //   }
+      //   io.to(targetId).emit('call-end');
+      //   io.to(from).emit('call-end');
+      // });
+      socket.on('call-end', ({ targetId, from }) => {
+        if (!targetId || !from) {
           return;
         }
-
+        console.log("helloooo");
         io.to(targetId).emit('call-end');
+        io.to(from).emit('call-end');
       });
     } catch (error) {
       console.error('Error during socket connection:', error);

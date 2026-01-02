@@ -259,6 +259,7 @@ class FacebookRouterController {
     conversation.participants.forEach((p: any) => {
       io.to(p._id.toString()).emit('newMessagePreview', populatedMessage);
     });
+// io.emit("newMessagePreview", populatedMessage);
 
     const intent = await detectIntent(content);
 

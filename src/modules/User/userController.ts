@@ -188,7 +188,9 @@ class UserController {
           errorCode: AuthErrorCode.INVALID_EMAIL,
           errorMessage: 'Bạn đã nhập sai mật khẩu, vui lòng thử lại',
     });
-    }
+    } 
+    await redis.del(`login_fail:${email}`);
+await redis.del(`blocked_user:${email}`);
 
     // 1. Add user to Redis SET (global list)
     await redis.sAdd("online_users", user.id);
